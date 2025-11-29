@@ -1,29 +1,31 @@
-"use client";
+"use client"; // MUST be first line to indicate this is a client component
 
-import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useAuth } from "@/context/AuthContext"; // import custom AuthContext hook
+import { useRouter } from "next/navigation"; // import Next.js router for client-side navigation
+import { useEffect } from "react"; // import React hook to run side effects
+import { SprintList } from "@/components/dashboard/SprintList"; // import SprintList component
+import { TaskBoard } from "@/components/dashboard/TaskBoard"; // import TaskBoard component
+import { ProjectList } from "@/components/dashboard/ProjectList";
 
-// Correct import relative to page.tsx
-import { SprintList } from "./sprints/SprintList";
+export default function DashboardPage() { // Dashboard page component
+  const { user, loading } = useAuth(); // get current user and loading state from context
+  const router = useRouter(); // initialize Next.js router
 
-import { TaskBoard } from "./tasks/TaskBoard";
+  useEffect(() => { // runs after component mounts or when dependencies change
+    if (!loading && !user) { // check if not loading and user is not logged in
+      router.replace("/login"); // redirect to login page safely inside effect
+    }
+  }, [loading, user, router]); // dependencies: run effect when these values change
 
-export default function DashboardPage() {
-  const { user } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!user) router.push("/login");
-  }, [user]);
-
-  if (!user) return null;
+  if (loading) return <div>Loading...</div>; // show loading UI while checking auth state
+  if (!user) return null; // prevent rendering dashboard if user is not logged in (redirect pending)
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Welcome, {user}</h1>
-      <SprintList />
-      <TaskBoard />
+    <div className="p-4"> {/* container with padding */}
+      <h1 className="text-2xl font-bold">Welcome</h1> {/* heading */}
+      <ProjectList/>
+     {/* task board component */}
     </div>
   );
 }
+

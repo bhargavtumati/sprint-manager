@@ -1,19 +1,28 @@
 // src/components/auth/SignUpForm.tsx
 "use client";
+
 import { useState } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 
 export const SignUpForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { login } = useAuth();
+  const [error, setError] = useState("");
+
+  const { signup } = useAuth(); // ✅ use signup
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    login(email); // Replace with backend API call
-    router.push("/dashboard");
+    setError("");
+
+    try {
+      await signup(email, password); // ✅ only email + password
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err.message || "Signup failed");
+    }
   };
 
   return (
@@ -21,6 +30,8 @@ export const SignUpForm = () => {
       onSubmit={handleSubmit}
       className="flex flex-col gap-4 w-80 mx-auto mt-20"
     >
+      {error && <p className="text-red-500 text-sm">{error}</p>}
+
       <input
         type="email"
         placeholder="Email"
@@ -29,6 +40,7 @@ export const SignUpForm = () => {
         className="p-2 border rounded"
         required
       />
+
       <input
         type="password"
         placeholder="Password"
@@ -37,7 +49,10 @@ export const SignUpForm = () => {
         className="p-2 border rounded"
         required
       />
-      <button className="bg-blue-500 text-white p-2 rounded">Sign Up</button>
+
+      <button className="bg-blue-500 text-white p-2 rounded">
+        Sign Up
+      </button>
     </form>
   );
 };
