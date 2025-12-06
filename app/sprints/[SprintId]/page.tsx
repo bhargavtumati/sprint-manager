@@ -38,7 +38,7 @@ export default function ProjectPage() { // Dashboard page component
 
     {/* Page content */}
     <div className="mt-12">
-      <SprintList />
+      <TaskList />
     </div>
   </div>
 );}
