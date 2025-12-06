@@ -8,7 +8,7 @@ import "./styles/globals.css";
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" >
       <head>
         <title>Sprint Manager</title>
       </head>
