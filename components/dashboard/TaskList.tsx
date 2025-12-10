@@ -216,13 +216,13 @@ export const TaskList = () => {
       <h1 className="text-2xl font-bold">Tasks</h1>
 
       {/* CREATE TASK */}
-      <div className="border p-4 rounded bg-white">
+      <div className="border-2 border-blue-500 p-4 rounded bg-white">
         <div className="flex gap-3 flex-wrap">
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Task title"
-            className="border px-3 py-2 rounded flex-1"
+            className="border-2 border-blue-500 px-3 py-2 rounded flex-1"
           />
 
           <select
@@ -230,7 +230,7 @@ export const TaskList = () => {
             onChange={(e) =>
               setWorkType(e.target.value as WorkType)
             }
-            className="border px-2 py-2 rounded"
+            className="border-2 border-blue-500 px-2 py-2 rounded"
           >
             {enumValues(WorkType).map((v) => (
               <option key={v}>{v}</option>
@@ -242,7 +242,7 @@ export const TaskList = () => {
             onChange={(e) =>
               setWorkflow(e.target.value as Workflow)
             }
-            className="border px-2 py-2 rounded"
+            className="border-2 border-blue-500 px-2 py-2 rounded"
           >
             {enumValues(Workflow).map((v) => (
               <option key={v}>{v}</option>
@@ -254,7 +254,7 @@ export const TaskList = () => {
             onChange={(e) =>
               setPriority(e.target.value as Priority)
             }
-            className="border px-2 py-2 rounded"
+            className="border-2 border-blue-500 px-2 py-2 rounded"
           >
             {enumValues(Priority).map((v) => (
               <option key={v}>{v}</option>
@@ -283,7 +283,7 @@ export const TaskList = () => {
           tasks.map((task) => (
             <div
               key={task.id}
-              className="border p-3 rounded bg-white"
+              className="border-2 border-blue-500 p-3 rounded bg-white"
             >
               <div className="flex gap-2 items-center flex-wrap">
                 <input
@@ -295,7 +295,7 @@ export const TaskList = () => {
                       e.target.value
                     )
                   }
-                  className="font-semibold flex-1 min-w-[200px] border px-2 py-1 rounded"
+                  className="font-semibold flex-1 min-w-[200px] border-2 border-blue-500 px-2 py-1 rounded"
                 />
 
                 <select
@@ -307,7 +307,7 @@ export const TaskList = () => {
                       e.target.value
                     )
                   }
-                  className="border px-2 py-1 rounded text-sm"
+                  className="border-2 border-blue-500 px-2 py-1 rounded text-sm"
                 >
                   {enumValues(WorkType).map((v) => (
                     <option key={v}>{v}</option>
@@ -323,7 +323,7 @@ export const TaskList = () => {
                       e.target.value
                     )
                   }
-                  className="border px-2 py-1 rounded text-sm"
+                  className="border-2 border-blue-500 px-2 py-1 rounded text-sm"
                 >
                   {enumValues(Workflow).map((v) => (
                     <option key={v}>{v}</option>
@@ -339,7 +339,7 @@ export const TaskList = () => {
                       e.target.value
                     )
                   }
-                  className="border px-2 py-1 rounded text-sm"
+                  className="border-2 border-blue-500 px-2 py-1 rounded text-sm"
                 >
                   {enumValues(Priority).map((v) => (
                     <option key={v}>{v}</option>
