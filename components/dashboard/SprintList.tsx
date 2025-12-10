@@ -121,11 +121,11 @@ export const SprintList = () => {
       {/* Sprints List */}
       <ul className="space-y-2 mb-4">
   {sprints.map((sprint) => (
-    <li key={sprint.id} className="p-3 border rounded shadow-sm">
+    <li key={sprint.id} className="p-3 border-2 border-blue-500 rounded shadow-sm">
       <button
         type="button"
         onClick={() => router.push(`/sprints/${sprint.id}`)}
-        className="w-full text-left p-3 border rounded shadow-sm
+        className="w-full text-left p-3 border-2 border-blue-500 rounded shadow-sm
                    hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
         {getSprintLabel(sprint)}

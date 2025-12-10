@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
 export default function SignUpPage() {
-  const { signup } = useAuth(); // signup function from context
+  const { signup } = useAuth();
   const router = useRouter();
 
   const [success, setSuccess] = useState("");
@@ -18,36 +18,48 @@ export default function SignUpPage() {
     setError("");
 
     try {
-    await signup(email, password); // pass name if needed
-    setSuccess("User got created successfully!"); // show success
-    setTimeout(() => {
-      router.push("/login"); // redirect after short delay
-    }, 1500); // 1.5s delay to show message
-  } catch (err: any) {
-    setError(err.message || "Something went wrong"); // show API error
-  }
+      await signup(email, password);
+      setSuccess("User created successfully!");
+      setTimeout(() => {
+        router.push("/login");
+      }, 1500);
+    } catch (err: any) {
+      setError(err.message || "Something went wrong");
+    }
   };
 
   return (
-    
+     <div className="min-h-screen bg-gray-100">
+    <h1 className="text-6xl text-center text-blue-500 mb-4">
+      🚀 Welcome to Sprint Manager
+    </h1>
+     
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-80 h-[650px] bg-white p-8 rounded-xl shadow-lg flex flex-col justify-center">
+      <div className=" w-80
+    bg-white
+    p-8
+    rounded-2xl
+    overflow-hidden
+    shadow-lg
+    flex flex-col
+    items-center">
+       
         <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">
           Sign Up
         </h2>
 
         {/* Success message */}
         {success && (
-          <p className="text-green-500 text-sm mb-4 text-center">{success}</p>
+          <p className="text-green-600 text-sm mb-4 text-center">{success}</p>
         )}
 
+        {/* Error message */}
         {error && (
-          <p className="text-red-500 text-sm mb-4 text-center">{error}</p>
+          <p className="text-red-600 text-sm mb-4 text-center">{error}</p>
         )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
-
-          {/* Email field */}
+        <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
+          {/* Email */}
           <div>
             <label htmlFor="email" className="block text-gray-700 mb-1">
               Email
@@ -57,13 +69,13 @@ export default function SignUpPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
               placeholder="you@example.com"
-              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+              required
+              className="w-full px-4 py-2 border-2 border-blue-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
           </div>
 
-          {/* Password field */}
+          {/* Password */}
           <div>
             <label htmlFor="password" className="block text-gray-700 mb-1">
               Password
@@ -73,15 +85,16 @@ export default function SignUpPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
               placeholder="••••••••"
-              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+              required
+              className="w-full px-4 py-2 border-2 border-blue-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
           </div>
 
+          {/* Submit Button */}
           <button
             type="submit"
-            className="w-full py-2 mt-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-200"
+            className="w-full px-4 py-2 border-2 border-blue-500 rounded-lg bg-green-500 text-white font-semibold hover:bg-green-600 transition duration-200"
           >
             Sign Up
           </button>
@@ -94,6 +107,7 @@ export default function SignUpPage() {
           </a>
         </p>
       </div>
+    </div>
     </div>
   );
 }

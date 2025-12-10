@@ -86,12 +86,12 @@ export const ProjectList = () => {
 
       <ul className="space-y-2">
   {projects.map((project) => (
-    <li key={project.id}className="p-3 border rounded shadow-sm">
+    <li key={project.id} className="p-3 border-2 border-blue-500 rounded shadow-sm">
             
       <button
         type="button"
         onClick={() => router.push(`/projects/${project.id}`)}
-        className="w-full text-left p-3 border rounded shadow-sm
+        className="w-full text-left p-3 border-2 border-blue-500 rounded shadow-sm
                    hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
         {project.title}
