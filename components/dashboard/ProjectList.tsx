@@ -44,7 +44,41 @@ export const ProjectList = () => {
   // Create new project
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newProjectName.trim()) return;
+    
+  const name = newProjectName.trim();
+
+  // ❌ Empty check
+  if (!name) {
+    setError("Project name is required");
+    return;
+  }
+
+  // ❌ Min length
+  if (name.length < 3) {
+    setError("Project name must be at least 3 characters");
+    return;
+  }
+
+  // ❌ Max length
+  if (name.length > 50) {
+    setError("Project name must be less than 50 characters");
+    return;
+  }
+
+  // ❌ Only special characters
+  if (!/^[a-zA-Z0-9 ]+$/.test(name)) {
+    setError("Project name can contain only letters, numbers, and spaces");
+    return;
+  }
+
+  // ❌ Duplicate project name (optional)
+  const alreadyExists = projects.some(
+    (p) => p.title.toLowerCase() === name.toLowerCase()
+  );
+  if (alreadyExists) {
+    setError("Project with this name already exists");
+    return;
+  }
 
     setCreating(true);
     setError("");
@@ -76,17 +110,15 @@ export const ProjectList = () => {
 
 
   return (
-    <div className="mb-6">
+    <div className="mb-6 bg-slate-50 p-6 rounded-xl shadow-sm">
       <h2 className="text-xl font-semibold mb-2">Projects</h2>
-
-      
 
       {/* Projects List */}
 
 
-      <ul className="space-y-2">
+      <ul className="space-y-2 mb-4">
   {projects.map((project) => (
-    <li key={project.id} className="p-3 border-2 border-blue-500 rounded shadow-sm">
+    <li key={project.id} className="rounded-2xl">
             
       <button
         type="button"
@@ -94,7 +126,9 @@ export const ProjectList = () => {
         className="w-full text-left p-3 border-2 border-blue-500 rounded shadow-sm
                    hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
+          <span className="font-medium text-black-700">
         {project.title}
+        </span>
       </button>
     </li>
   ))}
@@ -105,7 +139,9 @@ export const ProjectList = () => {
         <input
           type="text"
           value={newProjectName}
-          onChange={(e) => setNewProjectName(e.target.value)}
+          onChange={(e) => {setNewProjectName(e.target.value);
+            setError("");
+          }}
           placeholder="New project name"
           className="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
