@@ -18,7 +18,7 @@ export default function LoginPage() {
 
     try {
       await login(email, password); // login updates context + localStorage
-      router.push("/dashboard");    // redirect after login
+      router.replace("/dashboard");    // redirect after login without going back to login
     } catch (err: any) {
       setError(err.message || "Invalid email or password");
     }

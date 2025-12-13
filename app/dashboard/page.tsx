@@ -22,19 +22,6 @@ export default function DashboardPage() { // Dashboard page component
 
  return (
   <div className="relative min-h-screen p-4">
-    {/* Profile Icon — TOP RIGHT */}
-    <button
-      type="button"
-      onClick={() => router.push("/edit-profile")}
-      aria-label="Edit profile"
-      dir="ltr"
-      className="fixed top-4 right-4 left-auto w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 z-50"
-      style={{ left: "auto", right: "1rem" }}
-    >
-      <span className="font-semibold">
-        {user?.name?.[0]?.toUpperCase() || "U"}
-      </span>
-    </button>
 
     {/* Page content */}
     <div className="mt-12">
