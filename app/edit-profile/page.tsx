@@ -56,11 +56,20 @@ export default function EditProfilePage() {
     if (!user) return;
     setSaving(true);
 
+    const toNull = (val: string) => (val.trim() === "" ? null : val.trim());
+
     try {
       const res = await fetch(`${API_URL}/users/${user.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ full_name: name.trim(), email: email.trim(), mobile: mobile.trim(), role: role.trim(), location: location.trim(), organisation: organisation.trim() }),
+        body: JSON.stringify({
+          full_name: name.trim(), // Name is required, but we trim it
+          email: email.trim(),     // Email is required
+          mobile: toNull(mobile),
+          role: toNull(role),
+          location: toNull(location),
+          organisation: toNull(organisation),
+        }),
       });
 
       if (!res.ok) {
