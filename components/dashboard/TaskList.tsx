@@ -43,9 +43,16 @@ type Task = {
   priority: Priority;
   sprint_id?: number;
   user_id?: number | null;
+  user_name?: string | null;
 };
 
-type TaskUpdate = Omit<Task, "id" | "sprint_id">;
+type User = {
+  id: number;
+  full_name: string;
+
+};
+
+type TaskUpdate = Omit<Task, "id" | "sprint_id"> & { user_id?: string | number | null };
 
 /* ===================== HELPERS ===================== */
 
@@ -91,10 +98,11 @@ export const TaskList = () => {
   const [error, setError] = useState("");
 
   const [activeSprintId, setActiveSprintId] = useState<number | null>(null);
+  const [projectUsers, setProjectUsers] = useState<User[]>([]);
 
   // Create task
   const [title, setTitle] = useState("");
-  const [assigneeId, setAssigneeId] = useState("");
+  const [assigneeUser, setAssigneeUser] = useState<User | null>(null);
   const [workType, setWorkType] = useState<WorkType>("Task");
   const [workflow, setWorkflow] = useState<Workflow>("To Do");
   const [priority, setPriority] = useState<Priority>("Medium");
@@ -144,17 +152,29 @@ export const TaskList = () => {
     }
   }, [API_URL, projectId]);
 
+  const fetchProjectUsers = useCallback(async () => {
+    if (!API_URL || !projectId) return;
+
+    try {
+      const data = await apiFetch(`${API_URL}/users/project/${projectId}`);
+      setProjectUsers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Failed to fetch project users", err);
+    }
+  }, [API_URL, projectId]);
+
   useEffect(() => {
     fetchTasks();
     fetchActiveSprint();
-  }, [fetchTasks, fetchActiveSprint]);
+    fetchProjectUsers();
+  }, [fetchTasks, fetchActiveSprint, fetchProjectUsers]);
 
   /* ===================== UPDATE TASK ===================== */
 
   const handleTaskUpdate = async (
     taskId: number,
     field: keyof TaskUpdate,
-    value: string
+    value: string | number | null
   ) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task || !API_URL) return;
@@ -202,13 +222,14 @@ export const TaskList = () => {
           priority,
           project_id: Number(projectId),
           sprint_id: activeSprintId,
-          user_id: assigneeId ? Number(assigneeId) : null,
+          user_name: assigneeUser ? assigneeUser.full_name : null,
+          user_id: assigneeUser ? assigneeUser.id : null,
         }),
       });
 
       setTasks((prev) => [...prev, createdTask]);
       setTitle("");
-      setAssigneeId("");
+      setAssigneeUser(null);
     } catch (err) {
       setCreateError(
         err instanceof Error ? err.message : "Failed to create task"
@@ -247,13 +268,22 @@ export const TaskList = () => {
             className="border-2 border-blue-500 px-3 py-2 rounded flex-1"
           />
 
-          <input
-            value={assigneeId}
-            onChange={(e) => setAssigneeId(e.target.value)}
-            placeholder="Assignee ID"
-            type="number"
-            className="border-2 border-blue-500 px-3 py-2 rounded w-32"
-          />
+          <select
+            value={assigneeUser?.id || ""}
+            onChange={(e) => {
+              const selectedId = Number(e.target.value);
+              const user = projectUsers.find((u) => u.id === selectedId) || null;
+              setAssigneeUser(user);
+            }}
+            className="border-2 border-blue-500 px-3 py-2 rounded w-48"
+          >
+            <option value="">Unassigned</option>
+            {projectUsers.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.full_name}
+              </option>
+            ))}
+          </select>
 
           <select
             value={workType}
@@ -335,6 +365,22 @@ export const TaskList = () => {
                   }
                   className="font-semibold flex-1 min-w-[200px] border-2 border-blue-500 px-2 py-1 rounded"
                 />
+
+                <select
+                  value={task.user_id || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    handleTaskUpdate(task.id, "user_id", val === "" ? null : Number(val));
+                  }}
+                  className="border-2 border-blue-500 px-2 py-1 rounded text-sm w-32"
+                >
+                  <option value="">Unassigned</option>
+                  {projectUsers.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.full_name}
+                    </option>
+                  ))}
+                </select>
 
                 <select
                   value={task.work_type}
