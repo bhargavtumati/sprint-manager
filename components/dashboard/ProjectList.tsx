@@ -83,7 +83,7 @@ export const ProjectList = () => {
     }
 
     // ❌ Duplicate project name (optional)
-    const alreadyExists = projects.some(
+    const alreadyExists = Array.isArray(projects) && projects.some(
       (p) => p.title.toLowerCase() === name.toLowerCase()
     );
     if (alreadyExists) {
@@ -98,7 +98,10 @@ export const ProjectList = () => {
       const res = await fetch(`${API_URL}/projects/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: newProjectName }),
+        body: JSON.stringify({
+          title: newProjectName,
+          users: user?.id ? [user.id] : []
+        }),
       });
 
       if (!res.ok) {
@@ -108,8 +111,12 @@ export const ProjectList = () => {
 
       const createdProject: Project = await res.json();
 
+      if (!createdProject.users || !Array.isArray(createdProject.users)) {
+        createdProject.users = [];
+      }
+
       // Ensure current user is in the list (for UI consistency)
-      if (user && !createdProject.users.some(u => u.id === user.id)) {
+      if (user && !createdProject.users?.some(u => u.id === user.id)) {
         const projectUser: User = {
           id: user.id,
           full_name: user.name || user.email // Map AuthContext user to ProjectList user
