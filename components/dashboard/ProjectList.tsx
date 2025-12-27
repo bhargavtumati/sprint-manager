@@ -4,15 +4,16 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
-
-type Project = {
-  id: number;
-  title: string;
-};
 type User = {
   id: number;
   full_name: string;
 };
+type Project = {
+  id: number;
+  title: string;
+  users: User[];
+};
+
 
 export const ProjectList = () => {
   const router = useRouter();
@@ -106,6 +107,16 @@ export const ProjectList = () => {
       }
 
       const createdProject: Project = await res.json();
+
+      // Ensure current user is in the list (for UI consistency)
+      if (user && !createdProject.users.some(u => u.id === user.id)) {
+        const projectUser: User = {
+          id: user.id,
+          full_name: user.name || user.email // Map AuthContext user to ProjectList user
+        };
+        createdProject.users = [...createdProject.users, projectUser];
+      }
+
       setProjects((prev) => [...prev, createdProject]);
       setNewProjectName(""); // clear input
     } catch (err: any) {
