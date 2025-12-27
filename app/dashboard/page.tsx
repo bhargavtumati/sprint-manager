@@ -20,12 +20,13 @@ export default function DashboardPage() { // Dashboard page component
   if (loading) return <div>Loading...</div>; // show loading UI while checking auth state
   if (!user) return null; // prevent rendering dashboard if user is not logged in (redirect pending)
 
- return (
-  <div className="relative min-h-screen p-4">
+  return (
+    <div className="relative min-h-screen p-4">
 
-    {/* Page content */}
-    <div className="mt-12">
-      <ProjectList />
+      {/* Page content */}
+      <div className="mt-12">
+        <ProjectList />
+      </div>
     </div>
-  </div>
-);}
+  );
+}
