@@ -1,19 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
-type User = {
-  id: number;
-  full_name: string;
-};
 type Project = {
   id: number;
   title: string;
   users: User[];
 };
 
+type User = {
+  id: number;
+  full_name: string;
+  organisation?: string;
+};
+
+const apiFetch = async (url: string, options: RequestInit = {}) => {
+  const token = localStorage.getItem("token");
+  const headers = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers,
+  };
+  const res = await fetch(url, { ...options, headers });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`API Error ${res.status}: ${errText || res.statusText}`);
+  }
+  return res.json();
+};
 
 export const ProjectList = () => {
   const router = useRouter();
@@ -23,111 +39,55 @@ export const ProjectList = () => {
   const [newProjectName, setNewProjectName] = useState("");
   const [creating, setCreating] = useState(false);
   const { user } = useAuth();
+
+  /* ===================== ASSIGN PROJECT STATE ===================== */
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [orgUsers, setOrgUsers] = useState<User[]>([]);
+  const [assigningLoading, setAssigningLoading] = useState(false);
+  const [usersLoading, setUsersLoading] = useState(false);
+
   const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
   const userId = user?.id;
 
-  // Fetch projects on mount
   useEffect(() => {
+    if (!API_URL || !userId) return;
+
     const fetchProjects = async () => {
-      if (!userId) return; // Wait for user to be loaded
-
       try {
-        const res = await fetch(`${API_URL}/projects/user/${userId}`, {
-          credentials: "include",
-        });
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.detail || `HTTP ${res.status}`);
+        const data = await apiFetch(`${API_URL}/projects/user/${userId}`);
+        if (Array.isArray(data)) {
+          setProjects(data);
+        } else {
+          setProjects([]);
         }
-        const data = await res.json();
-        setProjects(data || []);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err) {
+        setError("Failed to fetch projects");
       } finally {
         setLoading(false);
       }
     };
+
     fetchProjects();
   }, [API_URL, userId]);
 
-  // Create new project
-  const handleCreateProject = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const name = newProjectName.trim();
-
-    // ❌ Empty check
-    if (!name) {
-      setError("Project name is required");
-      return;
-    }
-
-    // ❌ Min length
-    if (name.length < 3) {
-      setError("Project name must be at least 3 characters");
-      return;
-    }
-
-    // ❌ Max length
-    if (name.length > 50) {
-      setError("Project name must be less than 50 characters");
-      return;
-    }
-
-    // ❌ Only special characters
-    if (!/^[a-zA-Z0-9 ]+$/.test(name)) {
-      setError("Project name can contain only letters, numbers, and spaces");
-      return;
-    }
-
-    // ❌ Duplicate project name (optional)
-    const alreadyExists = Array.isArray(projects) && projects.some(
-      (p) => p.title.toLowerCase() === name.toLowerCase()
-    );
-    if (alreadyExists) {
-      setError("Project with this name already exists");
-      return;
-    }
-
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim() || !userId) return;
     setCreating(true);
-    setError("");
 
     try {
-      const res = await fetch(`${API_URL}/projects/`, {
+      const newProject = await apiFetch(`${API_URL}/projects/`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: newProjectName,
-          users: user?.id ? [user.id] : []
+          users: [userId],
         }),
       });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || "Failed to create project");
-      }
-
-      const createdProject: Project = await res.json();
-
-      if (!createdProject.users || !Array.isArray(createdProject.users)) {
-        createdProject.users = [];
-      }
-
-      // Ensure current user is in the list (for UI consistency)
-      if (user && !createdProject.users?.some(u => u.id === user.id)) {
-        const projectUser: User = {
-          id: user.id,
-          full_name: user.name || user.email // Map AuthContext user to ProjectList user
-        };
-        createdProject.users = [...createdProject.users, projectUser];
-      }
-
-      setProjects((prev) => [...prev, createdProject]);
-      setNewProjectName(""); // clear input
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+      setProjects((prev) => [...prev, newProject]);
+      setNewProjectName("");
+    } catch (err) {
+      alert("Failed to create project");
     } finally {
       setCreating(false);
     }
@@ -136,52 +96,124 @@ export const ProjectList = () => {
   if (loading) return <p>Loading projects...</p>;
   if (error) return <p className="text-red-500">{error}</p>;
 
+  const fetchOrgUsers = async () => {
+    if (!API_URL || !userId) return;
+    setUsersLoading(true);
+    try {
+      // 1. Get current user's organization
+      const profile = await apiFetch(`${API_URL}/users/${userId}`);
+      const userOrg = profile.organisation || "Symphonize"; // fallback
+      console.log(`[DEBUG] Fetching users for organization: ${userOrg}`);
+
+      // 2. Get users in that organization
+      const data = await apiFetch(`${API_URL}/users/organisation/${userOrg}`);
+      setOrgUsers(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error("Failed to fetch org users", e);
+      setOrgUsers([]);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const openAssignModal = (projectId: number) => {
+    setSelectedProjectId(projectId);
+    setShowAssignModal(true);
+    fetchOrgUsers();
+  };
+
+  const handleAssignUser = async (userToAssign: User) => {
+    if (!selectedProjectId) return;
+    setAssigningLoading(true);
+    try {
+      // Assuming /projects/assign endpoint based on plan
+      await apiFetch(`${API_URL}/projects/add-users/${selectedProjectId}`, {
+        method: "POST",
+        body: JSON.stringify({
+          user_ids: [userToAssign.id]
+        })
+      });
+
+      alert(`Assigned to ${userToAssign.full_name}`);
+      setShowAssignModal(false);
+    } catch (err) {
+      alert("Failed to assign user");
+    } finally {
+      setAssigningLoading(false);
+    }
+  };
 
   return (
-    <div className="mb-6 bg-slate-50 p-6 rounded-xl shadow-sm">
+    <div className="mb-6 bg-slate-50 p-6 rounded-xl shadow-sm relative">
+      {/* ASSIGN MODAL */}
+      {showAssignModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded shadow-lg max-w-md w-full">
+            <h3 className="text-lg font-bold mb-4">Assign Project</h3>
+            <div className="max-h-60 overflow-y-auto space-y-2">
+              {usersLoading && <p>Loading users...</p>}
+              {!usersLoading && orgUsers.map(u => (
+                <button
+                  key={u.id}
+                  onClick={() => handleAssignUser(u)}
+                  className="w-full text-left p-2 hover:bg-gray-100 rounded border"
+                  disabled={assigningLoading}
+                >
+                  {u.full_name}
+                </button>
+              ))}
+              {!usersLoading && orgUsers.length === 0 && <p>No users found</p>}
+            </div>
+            <button
+              onClick={() => setShowAssignModal(false)}
+              className="mt-4 text-red-500 w-full text-center"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <h2 className="text-xl font-semibold mb-2">Projects</h2>
-
-
-
 
       <ul className="space-y-2 mb-4">
         {projects.map((project) => (
-          <li key={project.id} className="rounded-2xl">
-
+          <li key={project.id} className="rounded-2xl flex gap-2">
             <button
               type="button"
               onClick={() => router.push(`/projects/${project.id}`)}
-              className="w-full text-left p-3 border-2 border-blue-500 rounded shadow-sm
+              className="flex-1 text-left p-3 border-2 border-blue-500 rounded shadow-sm
                    hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <span className="font-medium text-black-700">
+              <span className="font-medium text-gray-900">
                 {project.title}
               </span>
+            </button>
+            <button
+              onClick={() => openAssignModal(project.id)}
+              className="bg-purple-500 text-white px-3 rounded hover:bg-purple-600"
+            >
+              Assign
             </button>
           </li>
         ))}
       </ul>
 
-      {/* Create Project Form */}
-      <form onSubmit={handleCreateProject} className="mb-4 flex gap-2">
+      <div className="flex gap-2">
         <input
-          type="text"
           value={newProjectName}
-          onChange={(e) => {
-            setNewProjectName(e.target.value);
-            setError("");
-          }}
+          onChange={(e) => setNewProjectName(e.target.value)}
           placeholder="New project name"
-          className="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="border border-gray-300 rounded px-3 py-2 flex-1 focus:ring-2 focus:ring-blue-500"
         />
         <button
-          type="submit"
+          onClick={handleCreateProject}
           disabled={creating}
-          className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
         >
-          {creating ? "Creating..." : "Create"}
+          {creating ? "Creating..." : "Create Project"}
         </button>
-      </form>
+      </div>
     </div>
   );
 };
