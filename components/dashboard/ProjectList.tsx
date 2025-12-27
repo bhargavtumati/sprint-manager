@@ -2,11 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 
 type Project = {
   id: number;
   title: string;
+};
+type User = {
+  id: number;
+  full_name: string;
 };
 
 export const ProjectList = () => {
@@ -16,13 +21,18 @@ export const ProjectList = () => {
   const [error, setError] = useState("");
   const [newProjectName, setNewProjectName] = useState("");
   const [creating, setCreating] = useState(false);
+  const { user } = useAuth();
   const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+  const userId = user?.id;
 
   // Fetch projects on mount
   useEffect(() => {
     const fetchProjects = async () => {
+      if (!userId) return; // Wait for user to be loaded
+
       try {
-        const res = await fetch(`${API_URL}/projects/`, {
+        const res = await fetch(`${API_URL}/projects/user/${userId}`, {
           credentials: "include",
         });
 
@@ -39,7 +49,7 @@ export const ProjectList = () => {
       }
     };
     fetchProjects();
-  }, [API_URL]);
+  }, [API_URL, userId]);
 
   // Create new project
   const handleCreateProject = async (e: React.FormEvent) => {

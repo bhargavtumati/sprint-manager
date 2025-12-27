@@ -11,7 +11,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   signup: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
@@ -59,29 +59,30 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const data = await res.json();
       setUser(data); // data should be the user object from FastAPI
       localStorage.setItem("user", JSON.stringify(data));
+      return data;
     },
     [API_URL]
   );
 
   const signup = useCallback(
-  async (email: string, password: string) => {
-    const res = await fetch(`${API_URL}/users/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+    async (email: string, password: string) => {
+      const res = await fetch(`${API_URL}/users/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || "Signup failed");
-    }
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Signup failed");
+      }
 
-    const data = await res.json();
-    setUser(data); // data should be the user object from FastAPI
-    localStorage.setItem("user", JSON.stringify(data));
-  },
-  [API_URL]
-);
+      const data = await res.json();
+      setUser(data); // data should be the user object from FastAPI
+      localStorage.setItem("user", JSON.stringify(data));
+    },
+    [API_URL]
+  );
 
   const logout = useCallback(() => {
     setUser(null);
