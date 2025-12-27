@@ -204,11 +204,6 @@ export const TaskList = () => {
   const handleCreateTask = async () => {
     if (!title.trim() || !API_URL || !projectId) return;
 
-    if (!activeSprintId) {
-      setCreateError("Create a sprint first");
-      return;
-    }
-
     setCreating(true);
     setCreateError("");
 
@@ -221,7 +216,7 @@ export const TaskList = () => {
           work_flow: workflow,
           priority,
           project_id: Number(projectId),
-          sprint_id: activeSprintId,
+          sprint_id: activeSprintId ?? null,
           user_name: assigneeUser ? assigneeUser.full_name : null,
           user_id: assigneeUser ? assigneeUser.id : null,
         }),
@@ -348,7 +343,7 @@ export const TaskList = () => {
         {tasks.length === 0 ? (
           <p className="text-gray-500">No tasks</p>
         ) : (
-          tasks.map((task) => (
+          Array.from(new Map(tasks.map((task) => [task.id, task])).values()).map((task) => (
             <div
               key={task.id}
               className="border-2 border-blue-500 p-3 rounded bg-white"

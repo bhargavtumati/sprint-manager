@@ -9,21 +9,46 @@ export default function EditProfilePage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [mobile, setMobile] = useState("");
+  const [role, setRole] = useState("");
+  const [location, setLocation] = useState("")
+  const [organisation, setOrganisation] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
   useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
-      setName(user.name ?? "");
-      setEmail(user.email ?? "");
+    if (loading) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
     }
+
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch(`${API_URL}/users/${user.id}`);
+        if (!res.ok) throw new Error("Failed to fetch profile");
+
+        const data = await res.json();
+
+        setName(data.full_name ?? "");
+        setEmail(data.email ?? "");
+        setMobile(data.mobile ?? "");
+        setRole(data.role ?? "");
+        setLocation(data.location ?? "");
+        setOrganisation(data.organisation ?? "");
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load profile");
+      }
+    };
+
+    fetchProfile();
   }, [loading, user, router]);
+
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +60,7 @@ export default function EditProfilePage() {
       const res = await fetch(`${API_URL}/users/${user.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), email: email.trim() }),
+        body: JSON.stringify({ full_name: name.trim(), email: email.trim(), mobile: mobile.trim(), role: role.trim(), location: location.trim(), organisation: organisation.trim() }),
       });
 
       if (!res.ok) {
@@ -68,7 +93,7 @@ export default function EditProfilePage() {
         ) : null}
 
         <div>
-          <label className="block text-sm font-medium mb-1">Name</label>
+          <label className="block text-sm font-semibold mb-1 text-indigo-700">Name</label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -78,8 +103,9 @@ export default function EditProfilePage() {
           />
         </div>
 
+
         <div>
-          <label className="block text-sm font-medium mb-1">Email</label>
+          <label className="block text-sm font-semibold mb-1 text-indigo-700">Email</label>
           <input
             type="email"
             value={email}
@@ -87,6 +113,42 @@ export default function EditProfilePage() {
             className="w-full border-2 border-blue-500 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
             placeholder="you@example.com"
             required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold mb-1 text-indigo-700">Mobile</label>
+          <input
+            value={mobile}
+            onChange={(e) => setMobile(e.target.value)}
+            className="w-full border-2 border-blue-500 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            placeholder="90XXXXXXXX"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold mb-1 text-indigo-700">Role</label>
+          <input
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="w-full border-2 border-blue-500 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            placeholder="Developer"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold mb-1 text-indigo-700">Location</label>
+          <input
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            className="w-full border-2 border-blue-500 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            placeholder="Vijayawada,AP"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold mb-1 text-indigo-700">Organisation</label>
+          <input
+            value={organisation}
+            onChange={(e) => setOrganisation(e.target.value)}
+            className="w-full border-2 border-blue-500 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            placeholder="Your Organisation"
           />
         </div>
 
