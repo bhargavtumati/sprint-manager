@@ -1,9 +1,8 @@
 // app/layout.tsx
 "use client";
 import './globals.css';
-import Navbar from "@/components/Navbar/Navbar";
-
 import { AuthProvider } from "@/context/AuthContext";
+import LogoHeader from "@/components/LogoHeader/LogoHeader";
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
@@ -12,12 +11,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <title>Sprint Manager</title>
       </head>
       <body>
-       <AuthProvider>
-  <Navbar />
-  <div style={{ marginLeft: "220px" }}>
-    {children}
-  </div>
-</AuthProvider>
+        <AuthProvider>
+          <LogoHeader />
+          {children}
+        </AuthProvider>
+
 
       </body>
     </html>

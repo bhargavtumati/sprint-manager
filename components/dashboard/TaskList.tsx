@@ -42,6 +42,7 @@ type Task = {
   work_flow: Workflow;
   priority: Priority;
   sprint_id?: number;
+  user_id?: number | null;
 };
 
 type TaskUpdate = Omit<Task, "id" | "sprint_id">;
@@ -50,7 +51,7 @@ type TaskUpdate = Omit<Task, "id" | "sprint_id">;
 
 const apiFetch = async (url: string, options: RequestInit = {}) => {
   console.log(`[API] ${options.method || "GET"} ${url}`);
-  
+
   const res = await fetch(url, {
     ...options,
     credentials: "include",
@@ -65,7 +66,7 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
     console.error(`[API Error] ${res.status}: ${errText}`);
     throw new Error(`API Error ${res.status}: ${errText || res.statusText}`);
   }
-  
+
   const data = await res.json();
   console.log(`[API Response]`, data);
   return data;
@@ -93,6 +94,7 @@ export const TaskList = () => {
 
   // Create task
   const [title, setTitle] = useState("");
+  const [assigneeId, setAssigneeId] = useState("");
   const [workType, setWorkType] = useState<WorkType>("Task");
   const [workflow, setWorkflow] = useState<Workflow>("To Do");
   const [priority, setPriority] = useState<Priority>("Medium");
@@ -109,9 +111,17 @@ export const TaskList = () => {
 
     try {
       const data = await apiFetch(
-        `${API_URL}/tasks?project_id=${projectId}`
+        `${API_URL}/tasks/`
       );
-      setTasks(Array.isArray(data) ? data : []);
+      if (Array.isArray(data)) {
+        // Deduplicate tasks by ID (normalize to string to avoid 1 vs "1" duplicates)
+        const uniqueTasks = Array.from(
+          new Map(data.map((task: Task) => [String(task.id), task])).values()
+        );
+        setTasks(uniqueTasks);
+      } else {
+        setTasks([]);
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to load tasks"
@@ -192,11 +202,13 @@ export const TaskList = () => {
           priority,
           project_id: Number(projectId),
           sprint_id: activeSprintId,
+          user_id: assigneeId ? Number(assigneeId) : null,
         }),
       });
 
       setTasks((prev) => [...prev, createdTask]);
       setTitle("");
+      setAssigneeId("");
     } catch (err) {
       setCreateError(
         err instanceof Error ? err.message : "Failed to create task"
@@ -213,7 +225,17 @@ export const TaskList = () => {
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-8">
-      <h1 className="text-2xl font-bold">Tasks</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Tasks</h1>
+        <div className="space-x-2">
+          <button
+            onClick={() => {/* Implement End Logic */ }}
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition"
+          >
+            End Sprint
+          </button>
+        </div>
+      </div>
 
       {/* CREATE TASK */}
       <div className="border-2 border-blue-500 p-4 rounded bg-white">
@@ -223,6 +245,14 @@ export const TaskList = () => {
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Task title"
             className="border-2 border-blue-500 px-3 py-2 rounded flex-1"
+          />
+
+          <input
+            value={assigneeId}
+            onChange={(e) => setAssigneeId(e.target.value)}
+            placeholder="Assignee ID"
+            type="number"
+            className="border-2 border-blue-500 px-3 py-2 rounded w-32"
           />
 
           <select
@@ -277,6 +307,14 @@ export const TaskList = () => {
 
       {/* TASK LIST */}
       <div className="space-y-6">
+        {(() => {
+          const ids = tasks.map(t => t.id);
+          const hasDuplicates = new Set(ids).size !== ids.length;
+          if (hasDuplicates) {
+            console.warn("Found duplicate task IDs:", ids);
+          }
+          return null;
+        })()}
         {tasks.length === 0 ? (
           <p className="text-gray-500">No tasks</p>
         ) : (

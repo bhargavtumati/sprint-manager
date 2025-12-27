@@ -48,7 +48,7 @@ export default function EditProfilePage() {
       localStorage.setItem("user", JSON.stringify(updated));
 
       // Navigate back to dashboard (or wherever appropriate)
-      router.push("/dashboard");
+      router.back();
     } catch (err: any) {
       setError(err?.message || String(err));
     } finally {
@@ -101,7 +101,7 @@ export default function EditProfilePage() {
 
           <button
             type="button"
-            onClick={() => router.push("/dashboard")}
+            onClick={() => router.back()}
             className="px-4 py-2 border rounded"
           >
             Cancel

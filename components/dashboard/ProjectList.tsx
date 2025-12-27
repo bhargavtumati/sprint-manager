@@ -25,10 +25,10 @@ export const ProjectList = () => {
         const res = await fetch(`${API_URL}/projects/`, {
           credentials: "include",
         });
-      
+
         if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || `HTTP ${res.status}`);
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || `HTTP ${res.status}`);
         }
         const data = await res.json();
         setProjects(data || []);
@@ -44,41 +44,41 @@ export const ProjectList = () => {
   // Create new project
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-  const name = newProjectName.trim();
 
-  // ❌ Empty check
-  if (!name) {
-    setError("Project name is required");
-    return;
-  }
+    const name = newProjectName.trim();
 
-  // ❌ Min length
-  if (name.length < 3) {
-    setError("Project name must be at least 3 characters");
-    return;
-  }
+    // ❌ Empty check
+    if (!name) {
+      setError("Project name is required");
+      return;
+    }
 
-  // ❌ Max length
-  if (name.length > 50) {
-    setError("Project name must be less than 50 characters");
-    return;
-  }
+    // ❌ Min length
+    if (name.length < 3) {
+      setError("Project name must be at least 3 characters");
+      return;
+    }
 
-  // ❌ Only special characters
-  if (!/^[a-zA-Z0-9 ]+$/.test(name)) {
-    setError("Project name can contain only letters, numbers, and spaces");
-    return;
-  }
+    // ❌ Max length
+    if (name.length > 50) {
+      setError("Project name must be less than 50 characters");
+      return;
+    }
 
-  // ❌ Duplicate project name (optional)
-  const alreadyExists = projects.some(
-    (p) => p.title.toLowerCase() === name.toLowerCase()
-  );
-  if (alreadyExists) {
-    setError("Project with this name already exists");
-    return;
-  }
+    // ❌ Only special characters
+    if (!/^[a-zA-Z0-9 ]+$/.test(name)) {
+      setError("Project name can contain only letters, numbers, and spaces");
+      return;
+    }
+
+    // ❌ Duplicate project name (optional)
+    const alreadyExists = projects.some(
+      (p) => p.title.toLowerCase() === name.toLowerCase()
+    );
+    if (alreadyExists) {
+      setError("Project with this name already exists");
+      return;
+    }
 
     setCreating(true);
     setError("");
@@ -113,33 +113,34 @@ export const ProjectList = () => {
     <div className="mb-6 bg-slate-50 p-6 rounded-xl shadow-sm">
       <h2 className="text-xl font-semibold mb-2">Projects</h2>
 
-      {/* Projects List */}
+
 
 
       <ul className="space-y-2 mb-4">
-  {projects.map((project) => (
-    <li key={project.id} className="rounded-2xl">
-            
-      <button
-        type="button"
-        onClick={() => router.push(`/projects/${project.id}`)}
-        className="w-full text-left p-3 border-2 border-blue-500 rounded shadow-sm
+        {projects.map((project) => (
+          <li key={project.id} className="rounded-2xl">
+
+            <button
+              type="button"
+              onClick={() => router.push(`/projects/${project.id}`)}
+              className="w-full text-left p-3 border-2 border-blue-500 rounded shadow-sm
                    hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-      >
-          <span className="font-medium text-black-700">
-        {project.title}
-        </span>
-      </button>
-    </li>
-  ))}
-</ul>
+            >
+              <span className="font-medium text-black-700">
+                {project.title}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
 
       {/* Create Project Form */}
       <form onSubmit={handleCreateProject} className="mb-4 flex gap-2">
         <input
           type="text"
           value={newProjectName}
-          onChange={(e) => {setNewProjectName(e.target.value);
+          onChange={(e) => {
+            setNewProjectName(e.target.value);
             setError("");
           }}
           placeholder="New project name"
