@@ -3,7 +3,6 @@
 import { useAuth } from "@/context/AuthContext"; // import custom AuthContext hook
 import { useRouter } from "next/navigation"; // import Next.js router for client-side navigation
 import { useEffect } from "react"; // import React hook to run side effects
-import { SprintList } from "@/components/dashboard/SprintList"; // import SprintList component
 import { TaskList } from "@/components/dashboard/TaskList"; // import TaskBoard component
 import { ProjectList } from "@/components/dashboard/ProjectList";
 
