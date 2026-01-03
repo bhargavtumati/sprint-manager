@@ -122,6 +122,7 @@ export const TaskList = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [sprintFilters, setSprintFilters] = useState<Record<number, number | null>>({});
   const [backlogFilterUserId, setBacklogFilterUserId] = useState<number | null>(null);
+  const [showInactiveSprints, setShowInactiveSprints] = useState(false);
 
   /* ===================== MEMOIZED UNIQUE DATA ===================== */
 
@@ -627,54 +628,56 @@ export const TaskList = () => {
 
       {/* ACTIVE SPRINTS */}
       <div className="space-y-8">
-        {uniqueSprints.map((sprint: Sprint) => {
-          const sprintTasks = uniqueTasks.filter((t: Task) => t.sprint_id === sprint.id);
-          return (
-            <div key={`sprint-cont-${sprint.id}`} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center gap-4">
-                  <h2 className="text-xl font-bold">
-                    {`Sprint ${sprint.id}`}
-                    <span className="text-sm font-medium text-gray-700 ml-3">
-                      {sprint.start_date && sprint.end_date ? (
-                        `(${new Date(sprint.start_date).toLocaleDateString()} - ${new Date(sprint.end_date).toLocaleDateString()})`
-                      ) : ""}
-                    </span>
-                  </h2>
+        {uniqueSprints
+          .filter(sprint => sprint.status)
+          .map((sprint: Sprint) => {
+            const sprintTasks = uniqueTasks.filter((t: Task) => t.sprint_id === sprint.id);
+            return (
+              <div key={`sprint-cont-${sprint.id}`} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex items-center gap-4">
+                    <h2 className="text-xl font-bold">
+                      {`Sprint ${sprint.id}`}
+                      <span className="text-sm font-medium text-gray-700 ml-3">
+                        {sprint.start_date && sprint.end_date ? (
+                          `(${new Date(sprint.start_date).toLocaleDateString()} - ${new Date(sprint.end_date).toLocaleDateString()})`
+                        ) : ""}
+                      </span>
+                    </h2>
 
-                  <div className="flex items-center gap-2 ml-4 border-l pl-4">
-                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Filter:</label>
-                    <select
-                      value={sprintFilters[sprint.id] || ""}
-                      onChange={(e) => {
-                        const val = e.target.value === "" ? null : Number(e.target.value);
-                        setSprintFilters(prev => ({ ...prev, [sprint.id]: val }));
-                        fetchSprintTasks(sprint.id, val);
-                      }}
-                      className="border rounded px-2 py-1 text-xs bg-white focus:ring-1 focus:ring-blue-400"
-                    >
-                      <option value="">All Assignees</option>
-                      {projectUsers.map(u => (
-                        <option key={`filter-user-${sprint.id}-${u.id}`} value={u.id}>{u.full_name}</option>
-                      ))}
-                    </select>
+                    <div className="flex items-center gap-2 ml-4 border-l pl-4">
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Filter:</label>
+                      <select
+                        value={sprintFilters[sprint.id] || ""}
+                        onChange={(e) => {
+                          const val = e.target.value === "" ? null : Number(e.target.value);
+                          setSprintFilters(prev => ({ ...prev, [sprint.id]: val }));
+                          fetchSprintTasks(sprint.id, val);
+                        }}
+                        className="border rounded px-2 py-1 text-xs bg-white focus:ring-1 focus:ring-blue-400"
+                      >
+                        <option value="">All Assignees</option>
+                        {projectUsers.map(u => (
+                          <option key={`filter-user-${sprint.id}-${u.id}`} value={u.id}>{u.full_name}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
+                  <button
+                    onClick={() => handleEndSprint(sprint.id)}
+                    className="text-sm bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200"
+                  >
+                    End Sprint
+                  </button>
                 </div>
-                <button
-                  onClick={() => handleEndSprint(sprint.id)}
-                  className="text-sm bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200"
-                >
-                  End Sprint
-                </button>
+                {sprintTasks.length === 0 ? (
+                  <p className="text-gray-400 italic">No tasks in this sprint</p>
+                ) : (
+                  sprintTasks.map(renderTaskItem)
+                )}
               </div>
-              {sprintTasks.length === 0 ? (
-                <p className="text-gray-400 italic">No tasks in this sprint</p>
-              ) : (
-                sprintTasks.map(renderTaskItem)
-              )}
-            </div>
-          );
-        })}
+            );
+          })}
       </div>
 
       {/* BACKLOG */}
@@ -705,6 +708,53 @@ export const TaskList = () => {
           backlogTasks.map(renderTaskItem)
         )}
       </div>
+
+
+      {/* FINISHED SPRINTS TOGGLE */}
+      {uniqueSprints.some(s => !s.status) && (
+        <div className="flex justify-center my-4">
+          <button
+            onClick={() => setShowInactiveSprints(!showInactiveSprints)}
+            className="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors font-medium border border-gray-300"
+          >
+            {showInactiveSprints ? "Hide Finished Sprints" : "Show Finished Sprints"}
+          </button>
+        </div>
+      )}
+
+      {/* INACTIVE SPRINTS */}
+      {showInactiveSprints && (
+        <div className="space-y-8 mt-4 border-t pt-8">
+          <h2 className="text-lg font-bold text-gray-400 uppercase tracking-widest text-center">Finished Sprints</h2>
+          {uniqueSprints
+            .filter(sprint => !sprint.status)
+            .map((sprint: Sprint) => {
+              const sprintTasks = uniqueTasks.filter((t: Task) => t.sprint_id === sprint.id);
+              return (
+                <div key={`sprint-cont-${sprint.id}`} className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 grayscale-[0.5] opacity-80">
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-4">
+                      <h2 className="text-xl font-bold text-gray-500">
+                        {`Sprint ${sprint.id}`}
+                        <span className="text-sm font-medium text-gray-400 ml-3">
+                          {sprint.start_date && sprint.end_date ? (
+                            `(${new Date(sprint.start_date).toLocaleDateString()} - ${new Date(sprint.end_date).toLocaleDateString()})`
+                          ) : ""}
+                        </span>
+                      </h2>
+                    </div>
+                    <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded uppercase">Finished</span>
+                  </div>
+                  {sprintTasks.length === 0 ? (
+                    <p className="text-gray-400 italic">No tasks in this sprint</p>
+                  ) : (
+                    sprintTasks.map(renderTaskItem)
+                  )}
+                </div>
+              );
+            })}
+        </div>
+      )}
 
       {/* TASK DETAIL SIDEBAR */}
       {selectedTask && (
