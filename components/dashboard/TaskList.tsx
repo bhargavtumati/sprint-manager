@@ -121,6 +121,7 @@ export const TaskList = () => {
   const [createError, setCreateError] = useState("");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [sprintFilters, setSprintFilters] = useState<Record<number, number | null>>({});
+  const [backlogFilterUserId, setBacklogFilterUserId] = useState<number | null>(null);
 
   /* ===================== MEMOIZED UNIQUE DATA ===================== */
 
@@ -169,7 +170,10 @@ export const TaskList = () => {
       }
 
       // 2. Fetch Unassigned Tasks (Backlog)
-      const backlogData = await apiFetch(`${API_URL}/tasks/unassigned/${projectId}`);
+      const backlogUrl = backlogFilterUserId
+        ? `${API_URL}/tasks/user/${backlogFilterUserId}`
+        : `${API_URL}/tasks/unassigned/${projectId}`;
+      const backlogData = await apiFetch(backlogUrl);
       const backlogTasks = Array.isArray(backlogData)
         ? backlogData.map((t: any) => ({ ...t, sprint_id: null }))
         : [];
@@ -207,7 +211,7 @@ export const TaskList = () => {
     } finally {
       setLoading(false);
     }
-  }, [API_URL, projectId]);
+  }, [API_URL, projectId, backlogFilterUserId]);
 
   const fetchProjectUsers = useCallback(async () => {
     if (!API_URL || !projectId) return;
@@ -675,7 +679,26 @@ export const TaskList = () => {
 
       {/* BACKLOG */}
       <div className="bg-gray-100 p-4 rounded-xl border border-gray-300 mt-8">
-        <h2 className="text-xl font-bold mb-4 text-gray-700">Backlog</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-gray-700">Backlog</h2>
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-500 uppercase">Filter:</label>
+            <select
+              value={backlogFilterUserId || ""}
+              onChange={(e) => {
+                const val = e.target.value === "" ? null : Number(e.target.value);
+                setBacklogFilterUserId(val);
+                // fetchBoardData is triggered by useEffect on state change
+              }}
+              className="border rounded px-2 py-1 text-xs bg-white"
+            >
+              <option value="">All Assignees</option>
+              {projectUsers.map(u => (
+                <option key={`filter-user-backlog-${u.id}`} value={u.id}>{u.full_name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
         {backlogTasks.length === 0 ? (
           <p className="text-gray-500">No tasks in backlog</p>
         ) : (
