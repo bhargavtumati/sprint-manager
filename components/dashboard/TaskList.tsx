@@ -350,17 +350,17 @@ export const TaskList = () => {
     }
   };
 
-  const handleDeleteSprint = async (sprintId: number) => {
-    if (!confirm("Are you sure you want to delete this sprint? All tasks details might be lost or need to be moved.")) return;
+  const handleEndSprint = async (sprintId: number) => {
+    if (!confirm("Are you sure you want to end this sprint? All tasks details might be lost or need to be moved.")) return;
 
     try {
       await apiFetch(`${API_URL}/sprints/${sprintId}`, {
-        method: "DELETE",
+        method: "PATCH",
       });
       // Refresh board
       fetchBoardData();
     } catch (err) {
-      alert("Failed to delete sprint");
+      alert("Failed to end sprint");
     }
   };
 
@@ -620,7 +620,7 @@ export const TaskList = () => {
                   </span>
                 </h2>
                 <button
-                  onClick={() => handleDeleteSprint(sprint.id)}
+                  onClick={() => handleEndSprint(sprint.id)}
                   className="text-sm bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200"
                 >
                   End Sprint
