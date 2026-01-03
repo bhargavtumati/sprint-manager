@@ -292,6 +292,8 @@ export const TaskList = () => {
       setTasks((prev) =>
         prev.map((t) => (t.id === taskId ? updatedTask : t))
       );
+      // Refresh board data after successful update
+      fetchBoardData();
     } catch (err) {
       console.error(`[DEBUG] PATCH Task ${taskId} Failed:`, err);
       alert("Failed to update task");
@@ -396,12 +398,12 @@ export const TaskList = () => {
   const renderTaskItem = (task: Task) => (
     <div
       key={`task-${task.id}`}
-      className="border-2 border-blue-500 p-3 rounded bg-white mb-2"
+      className="border border-gray-200 p-3 rounded-lg bg-white mb-2 shadow-sm hover:shadow-md transition-shadow"
     >
       <div className="flex gap-2 items-center flex-wrap">
         <div
           onClick={() => setSelectedTask(task)}
-          className="font-semibold flex-1 min-w-[200px] border-2 border-blue-500 px-2 py-1 rounded cursor-pointer hover:bg-blue-50"
+          className="font-semibold flex-1 min-w-[200px] border border-gray-100 px-2 py-1 rounded cursor-pointer hover:bg-blue-50"
         >
           {task.title}
         </div>
@@ -412,7 +414,7 @@ export const TaskList = () => {
             const val = e.target.value;
             handleTaskUpdate(task.id, "sprint_id", val === "" ? null : Number(val));
           }}
-          className="border-2 border-purple-500 px-2 py-1 rounded text-sm w-32"
+          className="border border-gray-300 px-2 py-1 rounded text-sm w-32 focus:ring-2 focus:ring-blue-500 focus:outline-none"
         >
           <option value="">Backlog</option>
           {uniqueSprints.map(s => (
@@ -426,7 +428,7 @@ export const TaskList = () => {
             const val = e.target.value;
             handleTaskUpdate(task.id, "user_id", val === "" ? null : Number(val));
           }}
-          className="border-2 border-blue-500 px-2 py-1 rounded text-sm w-32"
+          className="border border-gray-300 px-2 py-1 rounded text-sm w-32 focus:ring-2 focus:ring-blue-500 focus:outline-none"
         >
           <option value="">Unassigned</option>
           {projectUsers.map((user) => (
@@ -445,7 +447,7 @@ export const TaskList = () => {
               e.target.value
             )
           }
-          className="border-2 border-blue-500 px-2 py-1 rounded text-sm"
+          className="border border-gray-300 px-2 py-1 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
         >
           {enumValues(WorkType).map((v) => (
             <option key={v}>{v}</option>
@@ -461,7 +463,7 @@ export const TaskList = () => {
               e.target.value
             )
           }
-          className="border-2 border-blue-500 px-2 py-1 rounded text-sm"
+          className="border border-gray-300 px-2 py-1 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
         >
           {enumValues(Workflow).map((v) => (
             <option key={v}>{v}</option>
@@ -477,7 +479,7 @@ export const TaskList = () => {
               e.target.value
             )
           }
-          className="border-2 border-blue-500 px-2 py-1 rounded text-sm"
+          className="border border-gray-300 px-2 py-1 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
         >
           {enumValues(Priority).map((v) => (
             <option key={v}>{v}</option>
@@ -542,20 +544,20 @@ export const TaskList = () => {
       )}
 
       {/* CREATE TASK FORM */}
-      <div className="border-2 border-blue-500 p-4 rounded bg-white">
-        <h3 className="font-bold mb-3 text-blue-700">Create Task</h3>
+      <div className="border border-gray-200 p-6 rounded-xl bg-white shadow-sm">
+        <h3 className="font-bold mb-4 text-gray-800">Create Task</h3>
         <div className="flex gap-3 flex-wrap">
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Task title"
-            className="border-2 border-blue-500 px-3 py-2 rounded flex-1"
+            className="border border-gray-300 px-4 py-2 rounded-lg flex-1 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
           />
 
           <select
             value={createSprintId || ""}
             onChange={(e) => setCreateSprintId(e.target.value ? Number(e.target.value) : null)}
-            className="border-2 border-purple-500 px-3 py-2 rounded w-40"
+            className="border border-gray-300 px-3 py-2 rounded-lg w-40 focus:ring-2 focus:ring-blue-500 focus:outline-none"
           >
             <option value="">Backlog</option>
             {uniqueSprints.map((s: Sprint) => (
@@ -570,7 +572,7 @@ export const TaskList = () => {
               const user = uniqueProjectUsers.find((u) => u.id === selectedId) || null;
               setAssigneeUser(user);
             }}
-            className="border-2 border-blue-500 px-3 py-2 rounded w-48"
+            className="border border-gray-300 px-3 py-2 rounded-lg w-48 focus:ring-2 focus:ring-blue-500 focus:outline-none"
           >
             <option value="">Unassigned</option>
             {uniqueProjectUsers.map((user) => (
@@ -585,7 +587,7 @@ export const TaskList = () => {
             onChange={(e) =>
               setWorkType(e.target.value as WorkType)
             }
-            className="border-2 border-blue-500 px-2 py-1 rounded"
+            className="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
           >
             {enumValues(WorkType).map((v) => (
               <option key={v}>{v}</option>
@@ -597,7 +599,7 @@ export const TaskList = () => {
             onChange={(e) =>
               setWorkflow(e.target.value as Workflow)
             }
-            className="border-2 border-blue-500 px-2 py-2 rounded"
+            className="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
           >
             {enumValues(Workflow).map((v) => (
               <option key={v}>{v}</option>
@@ -609,7 +611,7 @@ export const TaskList = () => {
             onChange={(e) =>
               setPriority(e.target.value as Priority)
             }
-            className="border-2 border-blue-500 px-2 py-2 rounded"
+            className="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
           >
             {enumValues(Priority).map((v) => (
               <option key={v}>{v}</option>
@@ -800,9 +802,11 @@ export const TaskList = () => {
                     onChange={(e) => {
                       const newTitle = e.target.value;
                       setSelectedTask(prev => prev ? { ...prev, title: newTitle } : null);
-                      handleTaskUpdate(selectedTask.id, "title", newTitle);
                     }}
-                    className="w-full border-2 border-blue-500 p-2 rounded font-bold text-lg"
+                    onBlur={(e) => {
+                      handleTaskUpdate(selectedTask.id, "title", e.target.value);
+                    }}
+                    className="w-full border border-gray-300 p-2 rounded-lg font-bold text-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -815,9 +819,11 @@ export const TaskList = () => {
                   onChange={(e) => {
                     const val = e.target.value;
                     setSelectedTask(prev => prev ? { ...prev, description: val } : null);
-                    handleTaskUpdate(selectedTask.id, "description", val);
                   }}
-                  className="w-full border-2 border-gray-200 p-3 rounded font-sans text-sm resize-none focus:border-blue-500 transition-colors"
+                  onBlur={(e) => {
+                    handleTaskUpdate(selectedTask.id, "description", e.target.value);
+                  }}
+                  className="w-full border border-gray-200 p-3 rounded-lg font-sans text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
                   placeholder="Add a detailed description..."
                 />
               </div>
@@ -833,7 +839,7 @@ export const TaskList = () => {
                       setSelectedTask(prev => prev ? { ...prev, user_id: uId } : null);
                       handleTaskUpdate(selectedTask.id, "user_id", uId);
                     }}
-                    className="w-full border-2 border-blue-300 p-2 rounded"
+                    className="w-full border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   >
                     <option value="">Unassigned</option>
                     {uniqueProjectUsers.map((u: User) => (
@@ -852,7 +858,7 @@ export const TaskList = () => {
                       setSelectedTask(prev => prev ? { ...prev, sprint_id: sId } : null);
                       handleTaskUpdate(selectedTask.id, "sprint_id", sId);
                     }}
-                    className="w-full border-2 border-purple-300 p-2 rounded"
+                    className="w-full border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
                   >
                     <option value="">Backlog</option>
                     {uniqueSprints.map((s: Sprint) => (
