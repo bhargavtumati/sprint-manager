@@ -767,7 +767,7 @@ export const TaskList = () => {
         <div className="fixed inset-0 z-50 overflow-hidden">
           <div className="absolute inset-0 bg-black/30" onClick={() => setSelectedTask(null)} />
           <div className="absolute inset-y-0 right-0 max-w-md w-full bg-white shadow-2xl flex flex-col animate-slide-in">
-            <div className="p-6 border-b flex justify-between items-center bg-blue-600 text-white">
+            <div className="p-6 border-b flex justify-between items-center bg-white-600 text-sky-600">
               <h2 className="text-xl font-bold">Task Details</h2>
               <button
                 onClick={() => setSelectedTask(null)}
