@@ -120,6 +120,7 @@ export const TaskList = () => {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [sprintFilters, setSprintFilters] = useState<Record<number, number | null>>({});
 
   /* ===================== MEMOIZED UNIQUE DATA ===================== */
 
@@ -218,6 +219,22 @@ export const TaskList = () => {
       console.error("Failed to fetch project users", err);
     }
   }, [API_URL, projectId]);
+
+  const fetchSprintTasks = async (sprintId: number, uId: number | null) => {
+    if (!API_URL) return;
+    try {
+      const url = uId
+        ? `${API_URL}/tasks/${sprintId}/user/${uId}`
+        : `${API_URL}/tasks/sprint/${sprintId}`;
+      const data: Task[] = await apiFetch(url);
+      setTasks(prev => {
+        const otherTasks = prev.filter(t => t.sprint_id !== sprintId);
+        return [...otherTasks, ...data.map(t => ({ ...t, sprint_id: sprintId }))];
+      });
+    } catch (err) {
+      console.error(`Failed to fetch tasks for sprint ${sprintId}`, err);
+    }
+  };
 
   const fetchProjectDetails = useCallback(async () => {
     if (!API_URL || !projectId) return;
@@ -611,14 +628,34 @@ export const TaskList = () => {
           return (
             <div key={`sprint-cont-${sprint.id}`} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">
-                  {`Sprint ${sprint.id}`}
-                  <span className="text-sm font-medium text-gray-700 ml-3">
-                    {sprint.start_date && sprint.end_date ? (
-                      `(${new Date(sprint.start_date).toLocaleDateString()} - ${new Date(sprint.end_date).toLocaleDateString()})`
-                    ) : ""}
-                  </span>
-                </h2>
+                <div className="flex items-center gap-4">
+                  <h2 className="text-xl font-bold">
+                    {`Sprint ${sprint.id}`}
+                    <span className="text-sm font-medium text-gray-700 ml-3">
+                      {sprint.start_date && sprint.end_date ? (
+                        `(${new Date(sprint.start_date).toLocaleDateString()} - ${new Date(sprint.end_date).toLocaleDateString()})`
+                      ) : ""}
+                    </span>
+                  </h2>
+
+                  <div className="flex items-center gap-2 ml-4 border-l pl-4">
+                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Filter:</label>
+                    <select
+                      value={sprintFilters[sprint.id] || ""}
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? null : Number(e.target.value);
+                        setSprintFilters(prev => ({ ...prev, [sprint.id]: val }));
+                        fetchSprintTasks(sprint.id, val);
+                      }}
+                      className="border rounded px-2 py-1 text-xs bg-white focus:ring-1 focus:ring-blue-400"
+                    >
+                      <option value="">All Assignees</option>
+                      {projectUsers.map(u => (
+                        <option key={`filter-user-${sprint.id}-${u.id}`} value={u.id}>{u.full_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
                 <button
                   onClick={() => handleEndSprint(sprint.id)}
                   className="text-sm bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200"
