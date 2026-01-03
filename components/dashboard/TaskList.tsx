@@ -171,17 +171,19 @@ export const TaskList = () => {
       }
 
       // 2. Fetch Unassigned Tasks (Backlog)
-      const backlogUrl = backlogFilterUserId
-        ? `${API_URL}/tasks/user/${backlogFilterUserId}`
-        : `${API_URL}/tasks/unassigned/${projectId}`;
+      const backlogUrl = backlogFilterUserId === -1
+        ? `${API_URL}/tasks/unassigned/${projectId}`
+        : backlogFilterUserId
+          ? `${API_URL}/tasks/all/${projectId}?user_id=${backlogFilterUserId}`
+          : `${API_URL}/tasks/all/${projectId}`;
       const backlogData = await apiFetch(backlogUrl);
       const backlogTasks = Array.isArray(backlogData)
-        ? backlogData.map((t: any) => ({ ...t, sprint_id: null }))
+        ? backlogData.map((t: any) => ({ ...t, sprint_id: t.sprint_id || null }))
         : [];
 
       // 3. Fetch Tasks for each Sprint
       const sprintTasksPromises = uniqueSprints.map(async (sprint) => {
-        const url = `${API_URL}/tasks/sprint/${sprint.id}`;
+        const url = `${API_URL}/tasks/all/${projectId}?sprint_id=${sprint.id}`;
         try {
           console.log(`[DEBUG] Fetching tasks for sprint ${sprint.id} from: ${url}`);
           const tData = await apiFetch(url);
@@ -226,11 +228,13 @@ export const TaskList = () => {
   }, [API_URL, projectId]);
 
   const fetchSprintTasks = async (sprintId: number, uId: number | null) => {
-    if (!API_URL) return;
+    if (!API_URL || !projectId) return;
     try {
-      const url = uId
-        ? `${API_URL}/tasks/${sprintId}/user/${uId}`
-        : `${API_URL}/tasks/sprint/${sprintId}`;
+      const url = uId === -1
+        ? `${API_URL}/tasks/unassigned/${projectId}?sprint_id=${sprintId}`
+        : uId
+          ? `${API_URL}/tasks/all/${projectId}?sprint_id=${sprintId}&user_id=${uId}`
+          : `${API_URL}/tasks/all/${projectId}?sprint_id=${sprintId}`;
       const data: Task[] = await apiFetch(url);
       setTasks(prev => {
         const otherTasks = prev.filter(t => t.sprint_id !== sprintId);
@@ -660,6 +664,7 @@ export const TaskList = () => {
                         {projectUsers.map(u => (
                           <option key={`filter-user-${sprint.id}-${u.id}`} value={u.id}>{u.full_name}</option>
                         ))}
+                        <option value="-1">Unassigned</option>
                       </select>
                     </div>
                   </div>
@@ -699,6 +704,7 @@ export const TaskList = () => {
               {projectUsers.map(u => (
                 <option key={`filter-user-backlog-${u.id}`} value={u.id}>{u.full_name}</option>
               ))}
+              <option value="-1">Unassigned</option>
             </select>
           </div>
         </div>
