@@ -301,7 +301,7 @@ export const TaskList = () => {
       setTitle("");
       setAssigneeUser(null);
       setCreateError("");
-      alert("Task created successfully!");
+      fetchBoardData();
     } catch (err) {
       console.error("Create task failed:", err);
       const msg = err instanceof Error ? err.message : "Failed to create task";
