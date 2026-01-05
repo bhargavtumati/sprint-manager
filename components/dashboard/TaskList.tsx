@@ -3,6 +3,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearch } from "@/context/SearchContext";
 
 /* ===================== CONFIG ===================== */
 
@@ -95,6 +96,7 @@ const enumValues = (enumObj: object) => Object.values(enumObj);
 
 export const TaskList = () => {
   const params = useParams();
+  const { searchQuery } = useSearch();
   const projectId =
     typeof params.ProjectId === "string"
       ? params.ProjectId
@@ -151,12 +153,28 @@ export const TaskList = () => {
   }, [projectUsers]);
 
   /* ===================== FETCH DATA ===================== */
-
+const isSearching = !!searchQuery && searchQuery.trim().length > 0;
   const fetchBoardData = useCallback(async () => {
     if (!API_URL || !projectId) return;
 
     setLoading(true);
     setError("");
+    // 🔍 SEARCH MODE — STOP NORMAL BOARD FLOW
+if (searchQuery && searchQuery.trim()) {
+  const searchUrl = `${API_URL}/tasks/search/ByTitle?project_id=${projectId}&q=${encodeURIComponent(
+    searchQuery.trim()
+  )}`;
+
+  console.log("SEARCH MODE URL:", searchUrl);
+
+  const searchData = await apiFetch(searchUrl);
+
+  setTasks(Array.isArray(searchData) ? searchData : []);
+
+  setLoading(false);
+  return; // ⛔ THIS IS CRITICAL
+}
+
 
     try {
       console.log("Fetching board data for project:", projectId);
@@ -169,13 +187,22 @@ export const TaskList = () => {
           new Map(loadedSprints.map((s: Sprint) => [String(s.id), s])).values()
         );
       }
-
       // 2. Fetch Unassigned Tasks (Backlog)
-      const backlogUrl = backlogFilterUserId === -1
-        ? `${API_URL}/tasks/unassigned/${projectId}`
-        : backlogFilterUserId
-          ? `${API_URL}/tasks/all/${projectId}?user_id=${backlogFilterUserId}`
-          : `${API_URL}/tasks/all/${projectId}`;
+    let backlogUrl: string;
+
+// if (searchQuery && searchQuery.trim().length > 0) {
+//   backlogUrl = `${API_URL}/tasks/search/ByTitle?q=${encodeURIComponent(
+//     searchQuery.trim()
+//   )}`;
+// } 
+ if (backlogFilterUserId) {
+  backlogUrl = `${API_URL}/tasks/user/${backlogFilterUserId}`;
+} else {
+  backlogUrl = `${API_URL}/tasks/unassigned/${projectId}`;
+}
+
+
+      console.log("SEARCH API URL:", backlogUrl);
       const backlogData = await apiFetch(backlogUrl);
       const backlogTasks = Array.isArray(backlogData)
         ? backlogData.map((t: any) => ({ ...t, sprint_id: t.sprint_id || null }))
@@ -214,7 +241,7 @@ export const TaskList = () => {
     } finally {
       setLoading(false);
     }
-  }, [API_URL, projectId, backlogFilterUserId]);
+  }, [API_URL, projectId, backlogFilterUserId, searchQuery]);
 
   const fetchProjectUsers = useCallback(async () => {
     if (!API_URL || !projectId) return;
@@ -738,7 +765,8 @@ export const TaskList = () => {
             .filter(sprint => !sprint.status)
             .map((sprint: Sprint) => {
               const sprintTasks = uniqueTasks.filter((t: Task) => t.sprint_id === sprint.id);
-              return (
+              
+return (
                 <div key={`sprint-cont-${sprint.id}`} className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 grayscale-[0.5] opacity-80">
                   <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-4">

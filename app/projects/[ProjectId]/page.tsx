@@ -2,13 +2,13 @@
 
 import { useAuth } from "@/context/AuthContext"; // import custom AuthContext hook
 import { useRouter } from "next/navigation"; // import Next.js router for client-side navigation
-import { useEffect } from "react"; // import React hook to run side effects
+import {useState, useEffect } from "react"; // import React hook to run side effects
 import { TaskList } from "@/components/dashboard/TaskList"; // import TaskBoard component
 
 export default function ProjectPage() { // Dashboard page component
   const { user, loading } = useAuth(); // get current user and loading state from context
   const router = useRouter(); // initialize Next.js router
-
+  const [searchQuery, setSearchQuery] = useState("");
   useEffect(() => { // runs after component mounts or when dependencies change
     if (!loading && !user) { // check if not loading and user is not logged in
       router.replace("/login"); // redirect to login page safely inside effect
@@ -21,7 +21,7 @@ export default function ProjectPage() { // Dashboard page component
   return (
     <div className="relative min-h-screen p-4">
       {/* Page content */}
-      <div className="mt-12">
+      <div className="mt-10">
         <TaskList />
       </div>
     </div>
