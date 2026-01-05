@@ -3,16 +3,29 @@
 import Link from "next/link";
 import styles from "./LogoHeader.module.css";
 import { usePathname } from "next/navigation";
+import { useSearch } from "@/context/SearchContext";
+
 
 export default function LogoHeader() {
     const pathname = usePathname();
     const isAuthPage = pathname === "/login" || pathname === "/signup";
+    const { searchQuery, setSearchQuery } = useSearch();
 
     return (
         <header className={styles.header}>
             <Link href="/dashboard" className="no-underline">
                 <h1 className={styles.title}>Sprint Manager</h1>
             </Link>
+            {!isAuthPage && pathname.startsWith("/projects") && (
+  <input
+    type="text"
+    placeholder="Search tasks..."
+    value={searchQuery}
+    onChange={(e) => setSearchQuery(e.target.value)}
+    className="px-3 py-1 border rounded w-64"
+  />
+)}
+
 
             {!isAuthPage && (
                 <Link href="/edit-profile" className={styles.profileLink} aria-label="Profile">

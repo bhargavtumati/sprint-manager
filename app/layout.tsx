@@ -3,6 +3,8 @@
 import './globals.css';
 import { AuthProvider } from "@/context/AuthContext";
 import LogoHeader from "@/components/LogoHeader/LogoHeader";
+import { SearchProvider } from "@/context/SearchContext";
+
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
@@ -19,8 +21,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     text-gray-800
   ">
         <AuthProvider>
+          <SearchProvider>
           <LogoHeader />
           {children}
+          </SearchProvider>
         </AuthProvider>
 
 
