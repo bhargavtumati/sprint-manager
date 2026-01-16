@@ -195,9 +195,15 @@ if (searchQuery && searchQuery.trim()) {
 //     searchQuery.trim()
 //   )}`;
 // } 
- if (backlogFilterUserId) {
-  backlogUrl = `${API_URL}/tasks/user/${backlogFilterUserId}`;
+ if (backlogFilterUserId === -1) {
+  // Logic for "Unassigned" - typically implies user_id is null/absent on the backend
+  // but explicitly requested for the backlog
+  backlogUrl = `${API_URL}/tasks/unassigned/${projectId}?backlog=true`;
+} else if (backlogFilterUserId) {
+  // Logic for a specific user
+  backlogUrl = `${API_URL}/tasks/unassigned/${projectId}?user_id=${backlogFilterUserId}`;
 } else {
+  // Logic for "All Assignees"
   backlogUrl = `${API_URL}/tasks/unassigned/${projectId}`;
 }
 
@@ -769,6 +775,8 @@ if (searchQuery && searchQuery.trim()) {
 return (
                 <div key={`sprint-cont-${sprint.id}`} className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 grayscale-[0.5] opacity-80">
                   <div className="flex justify-between items-center mb-4">
+                    
+                  
                     <div className="flex items-center gap-4">
                       <h2 className="text-xl font-bold text-gray-500">
                         {`Sprint ${sprint.id}`}
@@ -778,9 +786,30 @@ return (
                           ) : ""}
                         </span>
                       </h2>
+                      
                     </div>
+                    <div className="flex items-center gap-2 ml-4 border-l pl-4">
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Filter:</label>
+                      <select
+                        value={sprintFilters[sprint.id] || ""}
+                        onChange={(e) => {
+                          const val = e.target.value === "" ? null : Number(e.target.value);
+                          setSprintFilters(prev => ({ ...prev, [sprint.id]: val }));
+                          fetchSprintTasks(sprint.id, val);
+                        }}
+                        className="border rounded px-2 py-1 text-xs bg-white focus:ring-1 focus:ring-blue-400"
+                      >
+                        <option value="">All Assignees</option>
+                        {projectUsers.map(u => (
+                          <option key={`filter-user-${sprint.id}-${u.id}`} value={u.id}>{u.full_name}</option>
+                        ))}
+                        <option value="-1">Unassigned</option>
+                      </select>
+                    </div>
+                    
                     <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded uppercase">Finished</span>
                   </div>
+
                   {sprintTasks.length === 0 ? (
                     <p className="text-gray-400 italic">No tasks in this sprint</p>
                   ) : (
@@ -795,9 +824,12 @@ return (
       {/* TASK DETAIL SIDEBAR */}
       {selectedTask && (
         <div className="fixed inset-0 z-50 overflow-hidden">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setSelectedTask(null)} />
-       <div className="absolute inset-0 w-full h-full bg-white shadow-2xl flex flex-col animate-slide-in">
-            <div className="p-6 border-b flex justify-between items-center bg-white-600 text-sky-600">
+          <button type="button" aria-label="Close task details" className="absolute inset-0 bg-black/30 cursor-default focus:outline-none" onClick={() => setSelectedTask(null)} tabIndex={-1} // Keeps it out of the tab order since the "X" button exists
+/>
+          
+       <div className="absolute inset-y-0 right-0 max-w-md w-full bg-white shadow-2xl flex flex-col animate-slide-in">
+        
+            <div className="p-6 border-b flex justify-between items-center bg-white-600 text-black-600">
               <h2 className="text-xl font-bold">Task Details</h2>
               <button
                 onClick={() => setSelectedTask(null)}
@@ -959,8 +991,7 @@ return (
               </div>
 
               <div className="pt-4 border-t space-y-1">
-                <p className="text-xs text-gray-400">Task ID: {selectedTask.id}</p>
-                <p className="text-xs text-gray-400">Project ID: {selectedTask.project_id}</p>
+              
                 {selectedTask.parent_task && (
                   <p className="text-xs text-gray-400">Parent Task: {selectedTask.parent_task}</p>
                 )}
