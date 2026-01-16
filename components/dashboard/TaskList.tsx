@@ -830,7 +830,7 @@ return (
        <div className="absolute inset-y-0 right-0 max-w-md w-full bg-white shadow-2xl flex flex-col animate-slide-in">
         
             <div className="p-6 border-b flex justify-between items-center bg-white-600 text-black-600">
-              <h2 className="text-xl font-bold">Task Details</h2>
+              <h2 className="text-xl font-bold"> ℹ️ Task Details</h2>
               <button
                 onClick={() => setSelectedTask(null)}
                 className="text-2xl hover:text-gray-200"

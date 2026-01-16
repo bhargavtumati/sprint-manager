@@ -19,7 +19,7 @@ export default function LogoHeader() {
             {!isAuthPage && pathname.startsWith("/projects") && (
   <input
     type="text"
-    placeholder="Search tasks..."
+    placeholder="🔍 Search tasks..."
     value={searchQuery}
     onChange={(e) => setSearchQuery(e.target.value)}
     className="px-3 py-1 border rounded w-309"
