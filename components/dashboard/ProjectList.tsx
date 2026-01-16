@@ -8,6 +8,7 @@ type Project = {
   id: number;
   title: string;
   users: User[];
+  manager_id: number;
 };
 
 type User = {
@@ -38,6 +39,8 @@ export const ProjectList = () => {
   const [error, setError] = useState("");
   const [newProjectName, setNewProjectName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [userCounts, setUserCounts] = useState<Record<number, number>>({});
+  const [managerNames, setManagerNames] = useState<Record<number, string>>({});
   const { user } = useAuth();
 
   /* ===================== ASSIGN PROJECT STATE ===================== */
@@ -59,6 +62,32 @@ export const ProjectList = () => {
         const data = await apiFetch(`${API_URL}/projects/user/${userId}`);
         if (Array.isArray(data)) {
           setProjects(data);
+          // Fetch user counts for each project
+          const counts: Record<number, number> = {};
+          await Promise.all(data.map(async (p: Project) => {
+            try {
+              const users = await apiFetch(`${API_URL}/users/project/${p.id}`);
+              counts[p.id] = Array.isArray(users) ? users.length : 0;
+            } catch (err) {
+              console.error(`Failed to fetch users for project ${p.id}`, err);
+              counts[p.id] = 0;
+            }
+          }));
+          setUserCounts(counts);
+
+          // Fetch manager names for each project
+          const names: Record<number, string> = {};
+          await Promise.all(data.map(async (p: Project) => {
+            if (p.manager_id) {
+              try {
+                const u = await apiFetch(`${API_URL}/users/${p.manager_id}`);
+                names[p.manager_id] = u.full_name;
+              } catch (err) {
+                console.error(`Failed to fetch manager ${p.manager_id}`, err);
+              }
+            }
+          }));
+          setManagerNames(prev => ({ ...prev, ...names }));
         } else {
           setProjects([]);
         }
@@ -82,10 +111,29 @@ export const ProjectList = () => {
         body: JSON.stringify({
           title: newProjectName,
           users: [userId],
+          manager_id: userId,
         }),
       });
       setProjects((prev) => [...prev, newProject]);
       setNewProjectName("");
+      // Add manager name to state (current user is the manager)
+      if (user?.name) {
+        setManagerNames(prev => ({ ...prev, [newProject.manager_id]: user.name || "Unknown" }));
+      } else {
+        try {
+          const u = await apiFetch(`${API_URL}/users/${newProject.manager_id}`);
+          setManagerNames(prev => ({ ...prev, [newProject.manager_id]: u.name || "Unknown" }));
+        } catch (err) {
+          console.error("Failed to fetch manager name for new project", err);
+        }
+      }
+      // Fetch count for the new project
+      try {
+        const users = await apiFetch(`${API_URL}/users/project/${newProject.id}`);
+        setUserCounts(prev => ({ ...prev, [newProject.id]: Array.isArray(users) ? users.length : 0 }));
+      } catch (err) {
+        console.error("Failed to fetch initial user count for new project", err);
+      }
     } catch (err) {
       alert("Failed to create project");
     } finally {
@@ -136,6 +184,13 @@ export const ProjectList = () => {
 
       alert(`Assigned to ${userToAssign.full_name}`);
       setShowAssignModal(false);
+      // Refresh user count for this project
+      try {
+        const users = await apiFetch(`${API_URL}/users/project/${selectedProjectId}`);
+        setUserCounts(prev => ({ ...prev, [selectedProjectId]: Array.isArray(users) ? users.length : 0 }));
+      } catch (err) {
+        console.error(`Failed to refresh user count for project ${selectedProjectId}`, err);
+      }
     } catch (err) {
       alert("Failed to assign user");
     } finally {
@@ -176,28 +231,60 @@ export const ProjectList = () => {
 
       <h2 className="text-xl font-semibold mb-2">Projects</h2>
 
-      <ul className="space-y-2 mb-4">
-        {projects.map((project) => (
-          <li key={project.id} className="rounded-2xl flex gap-2">
-            <button
-              type="button"
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-6">
+        {/* Table Header */}
+        <div className="grid grid-cols-[1fr_1fr_120px_100px] gap-4 p-4 bg-gray-50 border-b border-gray-200 text-xs font-black uppercase tracking-wider text-gray-500">
+          <div>Project Name</div>
+          <div>Project Manager</div>
+          <div className="text-center">Team size</div>
+          <div className="text-right">Action</div>
+        </div>
+
+        {/* Table Body */}
+        <ul className="divide-y divide-gray-100 m-0 p-0">
+          {projects.map((project) => (
+            <li
+              key={project.id}
+              className="grid grid-cols-[1fr_1fr_120px_100px] gap-4 p-4 items-center hover:bg-blue-50/50 transition-colors group cursor-pointer"
               onClick={() => router.push(`/projects/${project.id}`)}
-              className="flex-1 text-left p-3 border-2 border-gray-300 rounded shadow-sm
-                   hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300" //existing projects
             >
-              <span className="font-medium text-gray-900">
+              <div className="font-bold text-gray-900 truncate">
                 {project.title}
-              </span>
-            </button>
-            <button
-              onClick={() => openAssignModal(project.id)}
-              className="bg-purple-500 text-white px-3 rounded hover:bg-purple-600"
-            >
-              Assign
-            </button>
-          </li>
-        ))}
-      </ul>
+              </div>
+
+              <div className="flex items-center gap-2 overflow-hidden">
+                <span className="text-lg grayscale group-hover:grayscale-0 transition-all shrink-0">👔</span>
+                <span className="text-sm font-medium text-gray-600 truncate">
+                  {managerNames[project.manager_id] || "Pending..."}
+                </span>
+              </div>
+
+              <div className="flex justify-center flex-col items-center gap-1">
+                <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[10px] font-black uppercase tracking-tighter shrink-0 border border-slate-200">
+                  {userCounts[project.id] || 0} Members
+                </span>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openAssignModal(project.id);
+                  }}
+                  className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 shrink-0"
+                >
+                  Assign
+                </button>
+              </div>
+            </li>
+          ))}
+          {projects.length === 0 && (
+            <div className="p-8 text-center text-gray-400 font-medium italic">
+              No projects found. Create one above to get started.
+            </div>
+          )}
+        </ul>
+      </div>
 
       <div className="flex gap-2">
         <input
