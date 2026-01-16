@@ -29,12 +29,14 @@ export default function SignUpPage() {
   };
 
   return (
-     <div className="min-h-screen bg-gray-100">
-    <h1 className="text-6xl text-center text-blue-500 mb-4">
-      🚀 Welcome to Sprint Manager
-    </h1>
+     <div className="min-h-screen bg-gray-100 ">
+    
      
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+    <div className="flex items-center justify-center min-h-screen gap-10 bg-gray-100">
+      <h1 className="text-6xl text-left text-blue-500 mb-4">
+      🚀 Track your work on ease
+    </h1>
+   
       <div className=" w-80
     bg-white
     p-8

@@ -182,8 +182,8 @@ export const ProjectList = () => {
             <button
               type="button"
               onClick={() => router.push(`/projects/${project.id}`)}
-              className="flex-1 text-left p-3 border-2 border-blue-500 rounded shadow-sm
-                   hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 text-left p-3 border-2 border-gray-300 rounded shadow-sm
+                   hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300" //existing projects
             >
               <span className="font-medium text-gray-900">
                 {project.title}
@@ -204,7 +204,7 @@ export const ProjectList = () => {
           value={newProjectName}
           onChange={(e) => setNewProjectName(e.target.value)}
           placeholder="New project name"
-          className="border border-gray-300 rounded px-3 py-2 flex-1 focus:ring-2 focus:ring-blue-500"
+          className="border border-gray-300 rounded px-3 py-2 flex-1 focus:ring-2 focus:ring-blue-500" //new project
         />
         <button
           onClick={handleCreateProject}

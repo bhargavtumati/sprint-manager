@@ -26,8 +26,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+    <div className="flex items-center justify-center min-h-screen gap-10 bg-gray-100">
+      <h1 className="text-6xl text-center text-blue-500 mb-4">
+       Sprint Manager helps you track your work 🚀
+    </h1>
       <div className="w-80 h-[500px] bg-white p-8 rounded-xl shadow-lg flex flex-col justify-center">
+
         <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">Login</h2>
 
         {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
