@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearch } from "@/context/SearchContext";
 
 /* ===================== CONFIG ===================== */
@@ -121,8 +121,47 @@ export const TaskList = () => {
   const [createSprintId, setCreateSprintId] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [activeCreateSprintId, setActiveCreateSprintId] = useState<number | "backlog" | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isSidebarFull, setIsSidebarFull] = useState(false);
   const [sprintFilters, setSprintFilters] = useState<Record<number, number | null>>({});
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize description textarea
+  useEffect(() => {
+    const textarea = descriptionRef.current;
+    if (!textarea) return;
+
+    const resizeTextArea = () => {
+      textarea.style.height = "auto";
+      textarea.style.height = `${Math.max(100, textarea.scrollHeight + 20)}px`;
+    };
+
+    // Initial call
+    resizeTextArea();
+
+    const observer = new ResizeObserver(resizeTextArea);
+    observer.observe(textarea);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [selectedTask?.id, selectedTask?.description]);
+  useEffect(() => {
+    if (selectedTask) {
+      const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.overflow = "hidden";
+      document.body.style.paddingRight = `${scrollBarWidth}px`;
+    } else {
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "";
+    };
+  }, [selectedTask]);
+
   const [backlogFilterUserId, setBacklogFilterUserId] = useState<number | null>(null);
   const [showInactiveSprints, setShowInactiveSprints] = useState(false);
 
@@ -153,27 +192,27 @@ export const TaskList = () => {
   }, [projectUsers]);
 
   /* ===================== FETCH DATA ===================== */
-const isSearching = !!searchQuery && searchQuery.trim().length > 0;
+  const isSearching = !!searchQuery && searchQuery.trim().length > 0;
   const fetchBoardData = useCallback(async () => {
     if (!API_URL || !projectId) return;
 
     setLoading(true);
     setError("");
     // 🔍 SEARCH MODE — STOP NORMAL BOARD FLOW
-if (searchQuery && searchQuery.trim()) {
-  const searchUrl = `${API_URL}/tasks/search/ByTitle?project_id=${projectId}&q=${encodeURIComponent(
-    searchQuery.trim()
-  )}`;
+    if (searchQuery && searchQuery.trim()) {
+      const searchUrl = `${API_URL}/tasks/search/ByTitle?project_id=${projectId}&q=${encodeURIComponent(
+        searchQuery.trim()
+      )}`;
 
-  console.log("SEARCH MODE URL:", searchUrl);
+      console.log("SEARCH MODE URL:", searchUrl);
 
-  const searchData = await apiFetch(searchUrl);
+      const searchData = await apiFetch(searchUrl);
 
-  setTasks(Array.isArray(searchData) ? searchData : []);
+      setTasks(Array.isArray(searchData) ? searchData : []);
 
-  setLoading(false);
-  return; // ⛔ THIS IS CRITICAL
-}
+      setLoading(false);
+      return; // ⛔ THIS IS CRITICAL
+    }
 
 
     try {
@@ -188,24 +227,24 @@ if (searchQuery && searchQuery.trim()) {
         );
       }
       // 2. Fetch Unassigned Tasks (Backlog)
-    let backlogUrl: string;
+      let backlogUrl: string;
 
-// if (searchQuery && searchQuery.trim().length > 0) {
-//   backlogUrl = `${API_URL}/tasks/search/ByTitle?q=${encodeURIComponent(
-//     searchQuery.trim()
-//   )}`;
-// } 
- if (backlogFilterUserId === -1) {
-  // Logic for "Unassigned" - typically implies user_id is null/absent on the backend
-  // but explicitly requested for the backlog
-  backlogUrl = `${API_URL}/tasks/unassigned/${projectId}?backlog=true`;
-} else if (backlogFilterUserId) {
-  // Logic for a specific user
-  backlogUrl = `${API_URL}/tasks/unassigned/${projectId}?user_id=${backlogFilterUserId}`;
-} else {
-  // Logic for "All Assignees"
-  backlogUrl = `${API_URL}/tasks/unassigned/${projectId}`;
-}
+      // if (searchQuery && searchQuery.trim().length > 0) {
+      //   backlogUrl = `${API_URL}/tasks/search/ByTitle?q=${encodeURIComponent(
+      //     searchQuery.trim()
+      //   )}`;
+      // } 
+      if (backlogFilterUserId === -1) {
+        // Logic for "Unassigned" - typically implies user_id is null/absent on the backend
+        // but explicitly requested for the backlog
+        backlogUrl = `${API_URL}/tasks/unassigned/${projectId}?backlog=true`;
+      } else if (backlogFilterUserId) {
+        // Logic for a specific user
+        backlogUrl = `${API_URL}/tasks/unassigned/${projectId}?user_id=${backlogFilterUserId}`;
+      } else {
+        // Logic for "All Assignees"
+        backlogUrl = `${API_URL}/tasks/unassigned/${projectId}`;
+      }
 
 
       console.log("SEARCH API URL:", backlogUrl);
@@ -335,7 +374,7 @@ if (searchQuery && searchQuery.trim()) {
 
   /* ===================== CREATE TASK ===================== */
 
-  const handleCreateTask = async () => {
+  const handleCreateTask = async (sprintId: number | null) => {
     if (!title.trim() || !API_URL || !projectId) return;
 
     setCreating(true);
@@ -348,7 +387,7 @@ if (searchQuery && searchQuery.trim()) {
         work_flow: workflow,
         priority,
         project_id: Number(projectId),
-        sprint_id: createSprintId,
+        sprint_id: sprintId,
         user_name: assigneeUser ? assigneeUser.full_name : null,
         user_id: assigneeUser ? assigneeUser.id : null,
       };
@@ -362,6 +401,7 @@ if (searchQuery && searchQuery.trim()) {
       setTitle("");
       setAssigneeUser(null);
       setCreateError("");
+      setActiveCreateSprintId(null);
       fetchBoardData();
     } catch (err) {
       console.error("Create task failed:", err);
@@ -371,6 +411,100 @@ if (searchQuery && searchQuery.trim()) {
     } finally {
       setCreating(false);
     }
+  };
+
+  const renderCreateTaskForm = (sprintId: number | null) => {
+    const isBacklog = sprintId === null;
+    const isActive = activeCreateSprintId === (isBacklog ? "backlog" : sprintId);
+
+    if (!isActive) {
+      return (
+        <button
+          onClick={() => {
+            setActiveCreateSprintId(isBacklog ? "backlog" : sprintId);
+            setCreateSprintId(sprintId);
+          }}
+          className="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-all flex items-center justify-center gap-2 mt-2"
+        >
+          <span className="text-xl">+</span> Add Task
+        </button>
+      );
+    }
+
+    return (
+      <div className="border-2 border-blue-400 p-4 rounded-xl bg-white shadow-md mt-2 space-y-4">
+        <div className="flex justify-between items-center">
+          <h4 className="font-bold text-gray-800">New Task in {isBacklog ? "Backlog" : `Sprint ${sprintId}`}</h4>
+          <button
+            onClick={() => setActiveCreateSprintId(null)}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            &times;
+          </button>
+        </div>
+
+        <div className="flex gap-3 flex-wrap">
+          <input
+            autoFocus
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Task title"
+            className="border border-gray-300 px-4 py-2 rounded-lg flex-1 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleCreateTask(sprintId);
+              if (e.key === "Escape") setActiveCreateSprintId(null);
+            }}
+          />
+
+          <select
+            value={assigneeUser?.id || ""}
+            onChange={(e) => {
+              const selectedId = Number(e.target.value);
+              const user = uniqueProjectUsers.find((u) => u.id === selectedId) || null;
+              setAssigneeUser(user);
+            }}
+            className="border border-gray-300 px-3 py-2 rounded-lg w-48 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          >
+            <option value="">Unassigned</option>
+            {uniqueProjectUsers.map((user) => (
+              <option key={`opt-user-${user.id}`} value={user.id}>
+                {user.full_name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={workType}
+            onChange={(e) => setWorkType(e.target.value as WorkType)}
+            className="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          >
+            {enumValues(WorkType).map((v) => (
+              <option key={v}>{v}</option>
+            ))}
+          </select>
+
+          <select
+            value={priority}
+            onChange={(e) => setPriority(e.target.value as Priority)}
+            className="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          >
+            {enumValues(Priority).map((v) => (
+              <option key={v}>{v}</option>
+            ))}
+          </select>
+
+          <button
+            onClick={() => handleCreateTask(sprintId)}
+            disabled={creating || !title.trim()}
+            className="bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold disabled:opacity-50 hover:bg-blue-600 transition-colors"
+          >
+            {creating ? "Creating..." : "Add"}
+          </button>
+        </div>
+
+        {createError && <p className="text-red-500 text-sm">{createError}</p>}
+      </div>
+    );
   };
 
   /* ===================== CREATE SPRINT ===================== */
@@ -435,7 +569,14 @@ if (searchQuery && searchQuery.trim()) {
     >
       <div className="flex gap-2 items-center flex-wrap">
         <div
-          onClick={() => setSelectedTask(task)}
+          onClick={() => {
+            setSelectedTask(task);
+            setIsSidebarFull(false);
+          }}
+          onDoubleClick={() => {
+            setSelectedTask(task);
+            setIsSidebarFull(true);
+          }}
           className="font-semibold flex-1 min-w-[200px] border border-gray-100 px-2 py-1 rounded cursor-pointer hover:bg-blue-50"
         >
           {task.title}
@@ -576,94 +717,6 @@ if (searchQuery && searchQuery.trim()) {
         </div>
       )}
 
-      {/* CREATE TASK FORM */}
-      <div className="border border-gray-200 p-6 rounded-xl bg-white shadow-sm">
-        <h3 className="font-bold mb-4 text-gray-800">Create Task</h3>
-        <div className="flex gap-3 flex-wrap">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Task title"
-            className="border border-gray-300 px-4 py-2 rounded-lg flex-1 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
-          />
-
-          <select
-            value={createSprintId || ""}
-            onChange={(e) => setCreateSprintId(e.target.value ? Number(e.target.value) : null)}
-            className="border border-gray-300 px-3 py-2 rounded-lg w-40 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          >
-            <option value="">Backlog</option>
-            {uniqueSprints.map((s: Sprint) => (
-              <option key={`opt-sprint-${s.id}`} value={s.id}>{`Sprint ${s.id}`}</option>
-            ))}
-          </select>
-
-          <select
-            value={assigneeUser?.id || ""}
-            onChange={(e) => {
-              const selectedId = Number(e.target.value);
-              const user = uniqueProjectUsers.find((u) => u.id === selectedId) || null;
-              setAssigneeUser(user);
-            }}
-            className="border border-gray-300 px-3 py-2 rounded-lg w-48 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          >
-            <option value="">Unassigned</option>
-            {uniqueProjectUsers.map((user) => (
-              <option key={`opt-user-${user.id}`} value={user.id}>
-                {user.full_name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={workType}
-            onChange={(e) =>
-              setWorkType(e.target.value as WorkType)
-            }
-            className="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          >
-            {enumValues(WorkType).map((v) => (
-              <option key={v}>{v}</option>
-            ))}
-          </select>
-
-          <select
-            value={workflow}
-            onChange={(e) =>
-              setWorkflow(e.target.value as Workflow)
-            }
-            className="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          >
-            {enumValues(Workflow).map((v) => (
-              <option key={v}>{v}</option>
-            ))}
-          </select>
-
-          <select
-            value={priority}
-            onChange={(e) =>
-              setPriority(e.target.value as Priority)
-            }
-            className="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          >
-            {enumValues(Priority).map((v) => (
-              <option key={v}>{v}</option>
-            ))}
-          </select>
-
-          <button
-            onClick={handleCreateTask}
-            disabled={creating}
-            className="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50"
-          >
-            {creating ? "Creating..." : "Add Task"}
-          </button>
-        </div>
-
-        {createError && (
-          <p className="text-red-500 mt-2">{createError}</p>
-        )}
-      </div>
 
       {/* ACTIVE SPRINTS */}
       <div className="space-y-8">
@@ -715,6 +768,7 @@ if (searchQuery && searchQuery.trim()) {
                 ) : (
                   sprintTasks.map(renderTaskItem)
                 )}
+                {renderCreateTaskForm(sprint.id)}
               </div>
             );
           })}
@@ -748,6 +802,7 @@ if (searchQuery && searchQuery.trim()) {
         ) : (
           backlogTasks.map(renderTaskItem)
         )}
+        {renderCreateTaskForm(null)}
       </div>
 
 
@@ -771,12 +826,12 @@ if (searchQuery && searchQuery.trim()) {
             .filter(sprint => !sprint.status)
             .map((sprint: Sprint) => {
               const sprintTasks = uniqueTasks.filter((t: Task) => t.sprint_id === sprint.id);
-              
-return (
+
+              return (
                 <div key={`sprint-cont-${sprint.id}`} className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 grayscale-[0.5] opacity-80">
                   <div className="flex justify-between items-center mb-4">
-                    
-                  
+
+
                     <div className="flex items-center gap-4">
                       <h2 className="text-xl font-bold text-gray-500">
                         {`Sprint ${sprint.id}`}
@@ -786,7 +841,7 @@ return (
                           ) : ""}
                         </span>
                       </h2>
-                      
+
                     </div>
                     <div className="flex items-center gap-2 ml-4 border-l pl-4">
                       <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Filter:</label>
@@ -806,7 +861,7 @@ return (
                         <option value="-1">Unassigned</option>
                       </select>
                     </div>
-                    
+
                     <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded uppercase">Finished</span>
                   </div>
 
@@ -815,6 +870,7 @@ return (
                   ) : (
                     sprintTasks.map(renderTaskItem)
                   )}
+                  {renderCreateTaskForm(sprint.id)}
                 </div>
               );
             })}
@@ -824,178 +880,189 @@ return (
       {/* TASK DETAIL SIDEBAR */}
       {selectedTask && (
         <div className="fixed inset-0 z-50 overflow-hidden">
-          <button type="button" aria-label="Close task details" className="absolute inset-0 bg-black/30 cursor-default focus:outline-none" onClick={() => setSelectedTask(null)} tabIndex={-1} // Keeps it out of the tab order since the "X" button exists
-/>
-          
-       <div className="absolute inset-y-0 right-0 max-w-md w-full bg-white shadow-2xl flex flex-col animate-slide-in">
-        
-            <div className="p-6 border-b flex justify-between items-center bg-white-600 text-black-600">
-              <h2 className="text-xl font-bold"> ℹ️ Task Details</h2>
+          <button type="button" aria-label="Close task details" className="absolute inset-0 bg-black/30 cursor-default focus:outline-none" onClick={() => { setSelectedTask(null); setIsSidebarFull(false); }} tabIndex={-1} // Keeps it out of the tab order since the "X" button exists
+          />
+
+          <div className={`absolute inset-y-0 right-0 ${isSidebarFull ? 'w-full' : 'max-w-md w-full'} bg-white shadow-2xl flex flex-col animate-slide-in overflow-hidden`}>
+
+            <div className="p-6 border-b flex justify-between items-center bg-white border-gray-100">
+              <div className="flex items-center gap-4">
+                <h2 className="text-xl font-bold"> ℹ️ Task Details</h2>
+                <button
+                  onClick={() => setIsSidebarFull(!isSidebarFull)}
+                  className="text-sm border border-gray-200 px-2 py-1 rounded-md hover:bg-gray-50 text-gray-500"
+                  title={isSidebarFull ? "Collapse" : "Expand"}
+                >
+                  {isSidebarFull ? "↙️ Collapse" : "↗️ Expand"}
+                </button>
+              </div>
               <button
-                onClick={() => setSelectedTask(null)}
-                className="text-2xl hover:text-gray-200"
+                onClick={() => { setSelectedTask(null); setIsSidebarFull(false); }}
+                className="text-2xl text-gray-400 hover:text-gray-600"
               >
                 &times;
               </button>
             </div>
 
-            <div className="p-6 space-y-6 overflow-y-auto flex-1">
-              <div className="flex gap-4">
-                <div className="w-24">
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Code</label>
-                  <input
-                    type="number"
-                    value={selectedTask.code || ""}
-                    onChange={(e) => {
-                      const val = e.target.value === "" ? null : Number(e.target.value);
-                      setSelectedTask(prev => prev ? { ...prev, code: val } : null);
-                      handleTaskUpdate(selectedTask.id, "code", val);
-                    }}
-                    className="w-full border-2 border-gray-200 p-2 rounded text-gray-500"
-                  />
+            <div className="flex-1 overflow-y-auto [direction:rtl]">
+              <div className="p-6 space-y-6 [direction:ltr]">
+                <div className="flex gap-4">
+                  <div className="w-24">
+                    <label className="block text-sm font-medium text-gray-500 mb-1">Code</label>
+                    <input
+                      type="number"
+                      value={selectedTask.code || ""}
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? null : Number(e.target.value);
+                        setSelectedTask(prev => prev ? { ...prev, code: val } : null);
+                        handleTaskUpdate(selectedTask.id, "code", val);
+                      }}
+                      className="w-full border-2 border-gray-200 p-2 rounded text-gray-500"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-500 mb-1">Title</label>
+                    <input
+                      type="text"
+                      value={selectedTask.title}
+                      onChange={(e) => {
+                        const newTitle = e.target.value;
+                        setSelectedTask(prev => prev ? { ...prev, title: newTitle } : null);
+                      }}
+                      onBlur={(e) => {
+                        handleTaskUpdate(selectedTask.id, "title", e.target.value);
+                      }}
+                      className="w-full border border-gray-300 p-2 rounded-lg font-bold text-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Title</label>
-                  <input
-                    type="text"
-                    value={selectedTask.title}
+
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Description</label>
+                  <textarea
+                    ref={descriptionRef}
+                    value={selectedTask.description || ""}
                     onChange={(e) => {
-                      const newTitle = e.target.value;
-                      setSelectedTask(prev => prev ? { ...prev, title: newTitle } : null);
+                      const val = e.target.value;
+                      setSelectedTask(prev => prev ? { ...prev, description: val } : null);
                     }}
                     onBlur={(e) => {
-                      handleTaskUpdate(selectedTask.id, "title", e.target.value);
+                      handleTaskUpdate(selectedTask.id, "description", e.target.value);
                     }}
-                    className="w-full border border-gray-300 p-2 rounded-lg font-bold text-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    className="w-full border border-gray-200 p-3 rounded-lg font-sans text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:outline-none overflow-hidden"
+                    placeholder="Add a detailed description..."
                   />
                 </div>
-              </div>
-              
 
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">Description</label>
-                <textarea
-                  value={selectedTask.description || ""}
-                  rows={8}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setSelectedTask(prev => prev ? { ...prev, description: val } : null);
-                  }}
-                  onBlur={(e) => {
-                    handleTaskUpdate(selectedTask.id, "description", e.target.value);
-                  }}
-                  className="w-full border border-gray-200 p-3 rounded-lg font-sans text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
-                  placeholder="Add a detailed description..."
-                />
-              </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">Assignee</label>
+                    <select
+                      value={selectedTask.user_id || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const uId = val === "" ? null : Number(val);
+                        setSelectedTask(prev => prev ? { ...prev, user_id: uId } : null);
+                        handleTaskUpdate(selectedTask.id, "user_id", uId);
+                      }}
+                      className="w-full border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    >
+                      <option value="">Unassigned</option>
+                      {uniqueProjectUsers.map((u: User) => (
+                        <option key={`side-user-${u.id}`} value={u.id}>{u.full_name}</option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Assignee</label>
-                  <select
-                    value={selectedTask.user_id || ""}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      const uId = val === "" ? null : Number(val);
-                      setSelectedTask(prev => prev ? { ...prev, user_id: uId } : null);
-                      handleTaskUpdate(selectedTask.id, "user_id", uId);
-                    }}
-                    className="w-full border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  >
-                    <option value="">Unassigned</option>
-                    {uniqueProjectUsers.map((u: User) => (
-                      <option key={`side-user-${u.id}`} value={u.id}>{u.full_name}</option>
-                    ))}
-                  </select>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">Sprint</label>
+                    <select
+                      value={selectedTask.sprint_id || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const sId = val === "" ? null : Number(val);
+                        setSelectedTask(prev => prev ? { ...prev, sprint_id: sId } : null);
+                        handleTaskUpdate(selectedTask.id, "sprint_id", sId);
+                      }}
+                      className="w-full border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    >
+                      <option value="">Backlog</option>
+                      {uniqueSprints.map((s: Sprint) => (
+                        <option key={`side-sprint-${s.id}`} value={s.id}>{`Sprint ${s.id}`}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Sprint</label>
-                  <select
-                    value={selectedTask.sprint_id || ""}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      const sId = val === "" ? null : Number(val);
-                      setSelectedTask(prev => prev ? { ...prev, sprint_id: sId } : null);
-                      handleTaskUpdate(selectedTask.id, "sprint_id", sId);
-                    }}
-                    className="w-full border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                  >
-                    <option value="">Backlog</option>
-                    {uniqueSprints.map((s: Sprint) => (
-                      <option key={`side-sprint-${s.id}`} value={s.id}>{`Sprint ${s.id}`}</option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">Type</label>
+                    <select
+                      value={selectedTask.work_type}
+                      onChange={(e) => {
+                        const val = e.target.value as WorkType;
+                        setSelectedTask(prev => prev ? { ...prev, work_type: val } : null);
+                        handleTaskUpdate(selectedTask.id, "work_type", val);
+                      }}
+                      className="w-full border p-2 rounded"
+                    >
+                      {enumValues(WorkType).map(v => <option key={v}>{v}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">Story Points</label>
+                    <input
+                      type="number"
+                      value={selectedTask.story_points || ""}
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? null : Number(e.target.value);
+                        setSelectedTask(prev => prev ? { ...prev, story_points: val } : null);
+                        handleTaskUpdate(selectedTask.id, "story_points", val);
+                      }}
+                      className="w-full border p-2 rounded"
+                      placeholder="0"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Type</label>
-                  <select
-                    value={selectedTask.work_type}
-                    onChange={(e) => {
-                      const val = e.target.value as WorkType;
-                      setSelectedTask(prev => prev ? { ...prev, work_type: val } : null);
-                      handleTaskUpdate(selectedTask.id, "work_type", val);
-                    }}
-                    className="w-full border p-2 rounded"
-                  >
-                    {enumValues(WorkType).map(v => <option key={v}>{v}</option>)}
-                  </select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">Workflow</label>
+                    <select
+                      value={selectedTask.work_flow}
+                      onChange={(e) => {
+                        const val = e.target.value as Workflow;
+                        setSelectedTask(prev => prev ? { ...prev, work_flow: val } : null);
+                        handleTaskUpdate(selectedTask.id, "work_flow", val);
+                      }}
+                      className="w-full border p-2 rounded"
+                    >
+                      {enumValues(Workflow).map(v => <option key={v}>{v}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">Priority</label>
+                    <select
+                      value={selectedTask.priority}
+                      onChange={(e) => {
+                        const val = e.target.value as Priority;
+                        setSelectedTask(prev => prev ? { ...prev, priority: val } : null);
+                        handleTaskUpdate(selectedTask.id, "priority", val);
+                      }}
+                      className="w-full border p-2 rounded"
+                    >
+                      {enumValues(Priority).map(v => <option key={v}>{v}</option>)}
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Story Points</label>
-                  <input
-                    type="number"
-                    value={selectedTask.story_points || ""}
-                    onChange={(e) => {
-                      const val = e.target.value === "" ? null : Number(e.target.value);
-                      setSelectedTask(prev => prev ? { ...prev, story_points: val } : null);
-                      handleTaskUpdate(selectedTask.id, "story_points", val);
-                    }}
-                    className="w-full border p-2 rounded"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Workflow</label>
-                  <select
-                    value={selectedTask.work_flow}
-                    onChange={(e) => {
-                      const val = e.target.value as Workflow;
-                      setSelectedTask(prev => prev ? { ...prev, work_flow: val } : null);
-                      handleTaskUpdate(selectedTask.id, "work_flow", val);
-                    }}
-                    className="w-full border p-2 rounded"
-                  >
-                    {enumValues(Workflow).map(v => <option key={v}>{v}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Priority</label>
-                  <select
-                    value={selectedTask.priority}
-                    onChange={(e) => {
-                      const val = e.target.value as Priority;
-                      setSelectedTask(prev => prev ? { ...prev, priority: val } : null);
-                      handleTaskUpdate(selectedTask.id, "priority", val);
-                    }}
-                    className="w-full border p-2 rounded"
-                  >
-                    {enumValues(Priority).map(v => <option key={v}>{v}</option>)}
-                  </select>
-                </div>
-              </div>
+                <div className="pt-4 border-t space-y-1">
 
-              <div className="pt-4 border-t space-y-1">
-              
-                {selectedTask.parent_task && (
-                  <p className="text-xs text-gray-400">Parent Task: {selectedTask.parent_task}</p>
-                )}
+                  {selectedTask.parent_task && (
+                    <p className="text-xs text-gray-400">Parent Task: {selectedTask.parent_task}</p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
