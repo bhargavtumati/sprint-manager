@@ -22,7 +22,7 @@ export default function LogoHeader() {
     placeholder="Search tasks..."
     value={searchQuery}
     onChange={(e) => setSearchQuery(e.target.value)}
-    className="px-3 py-1 border rounded w-64"
+    className="px-3 py-1 border rounded w-309"
   />
 )}
 
