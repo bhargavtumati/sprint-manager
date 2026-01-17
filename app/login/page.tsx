@@ -19,7 +19,11 @@ export default function LoginPage() {
     try {
       const user = await login(email, password); // login updates context + localStorage
       console.log("Logged in user ID:", user.id);
-      router.replace("/dashboard");    // redirect after login without going back to login
+      if (user.full_name === null) {
+        router.replace("/edit-profile");
+      } else {
+        router.replace("/dashboard");
+      }   // redirect after login without going back to login
     } catch (err: any) {
       setError(err.message || "Invalid email or password");
     }

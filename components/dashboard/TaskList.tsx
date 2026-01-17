@@ -242,7 +242,7 @@ export const TaskList = () => {
         // Logic for a specific user
         backlogUrl = `${API_URL}/tasks/unassigned/${projectId}?user_id=${backlogFilterUserId}`;
       } else {
-        // Logic for "All Assignees"
+        // Logic for "All Items"
         backlogUrl = `${API_URL}/tasks/unassigned/${projectId}`;
       }
 
@@ -748,7 +748,7 @@ export const TaskList = () => {
                         }}
                         className="border rounded px-2 py-1 text-xs bg-white focus:ring-1 focus:ring-blue-400"
                       >
-                        <option value="">All Assignees</option>
+                        <option value="">All Items</option>
                         {projectUsers.map(u => (
                           <option key={`filter-user-${sprint.id}-${u.id}`} value={u.id}>{u.full_name}</option>
                         ))}
@@ -778,7 +778,7 @@ export const TaskList = () => {
       <div className="bg-gray-100 p-4 rounded-xl border border-gray-300 mt-8">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-gray-700">Backlog</h2>
-          <div className="flex items-center gap-2">
+          {/* <div className="flex items-center gap-2">
             <label className="text-xs font-medium text-gray-500 uppercase">Filter:</label>
             <select
               value={backlogFilterUserId || ""}
@@ -789,13 +789,13 @@ export const TaskList = () => {
               }}
               className="border rounded px-2 py-1 text-xs bg-white"
             >
-              <option value="">All Assignees</option>
+              <option value="">All Items</option>
               {projectUsers.map(u => (
                 <option key={`filter-user-backlog-${u.id}`} value={u.id}>{u.full_name}</option>
               ))}
               <option value="-1">Unassigned</option>
             </select>
-          </div>
+          </div> */}
         </div>
         {backlogTasks.length === 0 ? (
           <p className="text-gray-500">No tasks in backlog</p>
@@ -843,7 +843,7 @@ export const TaskList = () => {
                       </h2>
 
                     </div>
-                    <div className="flex items-center gap-2 ml-4 border-l pl-4">
+                    {/* <div className="flex items-center gap-2 ml-4 border-l pl-4">
                       <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Filter:</label>
                       <select
                         value={sprintFilters[sprint.id] || ""}
@@ -854,13 +854,13 @@ export const TaskList = () => {
                         }}
                         className="border rounded px-2 py-1 text-xs bg-white focus:ring-1 focus:ring-blue-400"
                       >
-                        <option value="">All Assignees</option>
+                        <option value="">All Items</option>
                         {projectUsers.map(u => (
                           <option key={`filter-user-${sprint.id}-${u.id}`} value={u.id}>{u.full_name}</option>
                         ))}
                         <option value="-1">Unassigned</option>
                       </select>
-                    </div>
+                    </div> */}
 
                     <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded uppercase">Finished</span>
                   </div>

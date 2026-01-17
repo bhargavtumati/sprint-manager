@@ -117,12 +117,12 @@ export const ProjectList = () => {
       setProjects((prev) => [...prev, newProject]);
       setNewProjectName("");
       // Add manager name to state (current user is the manager)
-      if (user?.name) {
-        setManagerNames(prev => ({ ...prev, [newProject.manager_id]: user.name || "Unknown" }));
+      if (user?.full_name) {
+        setManagerNames(prev => ({ ...prev, [newProject.manager_id]: user.full_name || "Unknown" }));
       } else {
         try {
           const u = await apiFetch(`${API_URL}/users/${newProject.manager_id}`);
-          setManagerNames(prev => ({ ...prev, [newProject.manager_id]: u.name || "Unknown" }));
+          setManagerNames(prev => ({ ...prev, [newProject.manager_id]: u.full_name || "Unknown" }));
         } catch (err) {
           console.error("Failed to fetch manager name for new project", err);
         }
@@ -207,16 +207,18 @@ export const ProjectList = () => {
             <h3 className="text-lg font-bold mb-4">Assign Project</h3>
             <div className="max-h-60 overflow-y-auto space-y-2">
               {usersLoading && <p>Loading users...</p>}
-              {!usersLoading && orgUsers.map(u => (
-                <button
-                  key={u.id}
-                  onClick={() => handleAssignUser(u)}
-                  className="w-full text-left p-2 hover:bg-gray-100 rounded border"
-                  disabled={assigningLoading}
-                >
-                  {u.full_name}
-                </button>
-              ))}
+              {!usersLoading && orgUsers
+                .filter(u => u.full_name)
+                .map(u => (
+                  <button
+                    key={u.id}
+                    onClick={() => handleAssignUser(u)}
+                    className="w-full text-left p-2 hover:bg-gray-100 rounded border"
+                    disabled={assigningLoading}
+                  >
+                    {u.full_name}
+                  </button>
+                ))}
               {!usersLoading && orgUsers.length === 0 && <p>No users found</p>}
             </div>
             <button
