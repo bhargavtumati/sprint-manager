@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearch } from "@/context/SearchContext";
+import { MultiSelect } from "@/components/ui/MultiSelect";
 
 /* ===================== CONFIG ===================== */
 
@@ -146,7 +147,7 @@ export const TaskList = () => {
   const [activeCreateSprintId, setActiveCreateSprintId] = useState<number | "backlog" | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isSidebarFull, setIsSidebarFull] = useState(false);
-  const [sprintFilters, setSprintFilters] = useState<Record<number, number | null>>({});
+  const [sprintFilters, setSprintFilters] = useState<Record<number, number[]>>({});
   const sprintFiltersRef = useRef(sprintFilters);
 
   useEffect(() => {
@@ -258,20 +259,18 @@ export const TaskList = () => {
       const backlogBaseUrl = `${API_URL}/tasks/unassigned?project_ids=${projectId}`;
       let backlogUrl: string;
       if (backlogFilterUserId === -1) {
-        backlogUrl = `${backlogBaseUrl}&backlog=true`;
+        backlogUrl = `${backlogBaseUrl}&backlog=True`;
       } else if (backlogFilterUserId) {
         backlogUrl = `${backlogBaseUrl}&user_ids=${backlogFilterUserId}`;
       } else {
         // Default to pure backlog (no user, no sprint)
-        backlogUrl = `${backlogBaseUrl}&backlog=true`;
+        backlogUrl = `${backlogBaseUrl}&backlog=True`;
       }
-
       // Apply global filters to backlog as well
-      console.log('[BACKLOG] URL before buildQuery:', backlogUrl);
       backlogUrl = buildQuery(backlogUrl);
-      console.log('[BACKLOG] URL after buildQuery:', backlogUrl);
 
       const backlogData = await apiFetch(backlogUrl);
+
       let backlogTasks = Array.isArray(backlogData)
         ? backlogData.map((t: any) => ({ ...t, sprint_id: t.sprint_id || null }))
         : [];
@@ -290,14 +289,21 @@ export const TaskList = () => {
 
       // 3. Fetch Tasks for each Sprint
       const sprintTasksPromises = uniqueSprints.map(async (sprint) => {
-        const uId = sprintFiltersRef.current[sprint.id];
+        const uIds = sprintFiltersRef.current[sprint.id] || [];
 
-
-        let url = uId === -1
-          ? `${API_URL}/tasks/unassigned?project_ids=${projectId}&sprint_ids=${sprint.id}`
-          : uId
-            ? `${API_URL}/tasks/all?project_ids=${projectId}&sprint_ids=${sprint.id}&user_ids=${uId}`
-            : `${API_URL}/tasks/all?project_ids=${projectId}&sprint_ids=${sprint.id}`;
+        let url: string;
+        // Check for Unassigned (-1)
+        if (uIds.includes(-1)) {
+          // Exclusive Unassigned logic
+          url = `${API_URL}/tasks/unassigned?project_ids=${projectId}&sprint_ids=${sprint.id}`;
+        } else if (uIds.length > 0) {
+          // Specific users
+          const userParams = uIds.map(id => `user_ids=${id}`).join('&');
+          url = `${API_URL}/tasks/all?project_ids=${projectId}&sprint_ids=${sprint.id}&${userParams}`;
+        } else {
+          // All tasks (default)
+          url = `${API_URL}/tasks/all?project_ids=${projectId}&sprint_ids=${sprint.id}`;
+        }
 
         if (sprint.status) {
           url = buildQuery(url);
@@ -340,21 +346,43 @@ export const TaskList = () => {
     }
   }, [API_URL, projectId]);
 
-  const fetchSprintTasks = async (sprintId: number, uId: number | null) => {
+  const fetchSprintTasks = async (sprintId: number, uIds: number[]) => {
     if (!API_URL || !projectId) return;
-    try {
-      let url = uId === -1
-        ? `${API_URL}/tasks/unassigned?project_ids=${projectId}&sprint_ids=${sprintId}`
-        : uId
-          ? `${API_URL}/tasks/all?project_ids=${projectId}&sprint_ids=${sprintId}&user_ids=${uId}`
-          : `${API_URL}/tasks/all?project_ids=${projectId}&sprint_ids=${sprintId}`;
 
-      // Since fetchSprintTasks is used when global filters or assignee change for a sprint
-      url = buildQuery(url);
-      const data: Task[] = await apiFetch(url);
+    try {
+      const hasUnassigned = uIds.includes(-1);
+      const actualUserIds = uIds.filter(id => id !== -1);
+
+      const requestUrls: string[] = [];
+
+      // 1. If "Unassigned" (-1) is selected
+      if (hasUnassigned) {
+        requestUrls.push(buildQuery(`${API_URL}/tasks/unassigned?project_ids=${projectId}&sprint_ids=${sprintId}`));
+      }
+
+      // 2. If specific users are selected OR if the list is empty (fetch all for sprint)
+      if (actualUserIds.length > 0) {
+        const userParams = actualUserIds.map(id => `user_ids=${id}`).join('&');
+        requestUrls.push(buildQuery(`${API_URL}/tasks/all?project_ids=${projectId}&sprint_ids=${sprintId}&${userParams}`));
+      } else if (!hasUnassigned) {
+        // Case: uIds is totally empty - fetch everything for the sprint
+        requestUrls.push(buildQuery(`${API_URL}/tasks/all?project_ids=${projectId}&sprint_ids=${sprintId}`));
+      }
+
+      // Execute all necessary requests in parallel
+      const results = await Promise.all(requestUrls.map(url => apiFetch(url)));
+
+      // Flatten the array of arrays into a single task list
+      const combinedData: Task[] = results.flat();
+
       setTasks(prev => {
+        // Remove old tasks for this specific sprint and merge new ones
         const otherTasks = prev.filter(t => t.sprint_id !== sprintId);
-        return [...otherTasks, ...data.map(t => ({ ...t, sprint_id: sprintId }))];
+
+        // Map to ensure sprint_id is consistent (important if the backend doesn't return it)
+        const newTasks = combinedData.map(t => ({ ...t, sprint_id: sprintId }));
+
+        return [...otherTasks, ...newTasks];
       });
     } catch (err) {
       console.error(`Failed to fetch tasks for sprint ${sprintId}`, err);
@@ -718,7 +746,7 @@ export const TaskList = () => {
   const backlogTasks = uniqueTasks.filter(t => !t.sprint_id);
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-8">
+    <div className="max-w-300 mx-auto p-6 space-y-8">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">
           {project ? `${project.title} Board` : "Tasks Board"}
@@ -783,26 +811,17 @@ export const TaskList = () => {
 
                     <div className="flex items-center gap-2 ml-4 border-l pl-4">
                       <label className="text-xs font-medium text-gray-500 uppercase tracking-wider text-nowrap">Filters:</label>
-                      <select
-                        value={sprintFilters[sprint.id] || ""}
-                        onChange={(e) => {
-                          const val = e.target.value === "" ? null : Number(e.target.value);
-                          console.log(`[FILTER] Changing assignee for sprint ${sprint.id} to:`, val);
-                          setSprintFilters(prev => ({ ...prev, [sprint.id]: val }));
-                          // fetchSprintTasks(sprint.id, val); // Let's rely on the effect first, or debug why manual call fails?
-                          // The user earlier said UI didn't update on empty array. Explicit call *should* fix that.
-                          // But user says "filter not working". Maybe race condition?
-                          // Let's keep explicit call but log it.
-                          fetchSprintTasks(sprint.id, val);
+                      <MultiSelect
+                        options={projectUsers.map(u => ({ label: u.full_name, value: u.id }))}
+                        selected={sprintFilters[sprint.id] || []}
+                        onChange={(selected) => {
+                          console.log(`[FILTER] Changing assignees for sprint ${sprint.id} to:`, selected);
+                          setSprintFilters(prev => ({ ...prev, [sprint.id]: selected }));
+                          fetchSprintTasks(sprint.id, selected);
                         }}
-                        className="border rounded px-2 py-1 text-xs bg-white focus:ring-1 focus:ring-blue-400 min-w-[120px]"
-                      >
-                        <option value="">All Assignees</option>
-                        {projectUsers.map(u => (
-                          <option key={`filter-user-${sprint.id}-${u.id}`} value={u.id}>{u.full_name}</option>
-                        ))}
-                        <option value="-1">Unassigned</option>
-                      </select>
+                        placeholder="Assignees"
+                        className="min-w-[140px]"
+                      />
 
                       <select
                         value={filters.work_type || ""}
