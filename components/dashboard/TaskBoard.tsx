@@ -19,7 +19,7 @@ type Task = {
     id: number;
     title: string;
     work_flow: Workflow;
-    user_name?: string | null;
+    user_id?: number | null;
     priority: string;
 };
 
@@ -63,7 +63,7 @@ export const TaskBoard = () => {
         setLoading(true);
         try {
             // Fetch tasks
-            let url = `${API_URL}/tasks/all/${projectId}`;
+            let url = `${API_URL}/tasks/all?project_ids=${projectId}`;
             if (searchQuery) {
                 url = `${API_URL}/tasks/search/ByTitle?project_id=${projectId}&q=${encodeURIComponent(searchQuery)}`;
             }
@@ -101,33 +101,32 @@ export const TaskBoard = () => {
 
 
 
-    // Calculate task count per user
     const userTaskCounts = useMemo(() => {
-        // Initialize counts for all users with 0
+        // 1. Create a map for quick name lookup: { id: name }
+        const userMap: Record<number, string> = {};
+        users.forEach(u => userMap[u.id] = u.full_name);
+
+        // 2. Initialize counts: { "User Name": count }
         const counts: Record<string, number> = {};
         users.forEach(u => counts[u.full_name] = 0);
+        counts['Unassigned'] = 0;
 
-        // Add Unassigned if not present
-        if (!counts['Unassigned']) counts['Unassigned'] = 0;
-
-        // Count tasks
+        // 3. Increment counts by matching task.user_id to userMap
         tasks.forEach(task => {
-            const userName = task.user_name || 'Unassigned';
-            // If user is not in the list, track them too
-            if (counts[userName] === undefined) {
-                counts[userName] = 0;
+            const userName = task.user_id ? userMap[task.user_id] : 'Unassigned';
+
+            // Safety check if a task is assigned to a user not in the project list
+            if (userName) {
+                counts[userName] = (counts[userName] || 0) + 1;
+            } else {
+                counts['Unassigned']++;
             }
-            counts[userName]++;
         });
 
-        const result = Object.entries(counts)
-            .sort((a, b) => b[1] - a[1]) // Sort by count descending
+        // 4. Format for display
+        return Object.entries(counts)
+            .sort((a, b) => b[1] - a[1])
             .map(([name, count]) => ({ name, count }));
-
-        console.log('[TaskBoard] Tasks:', tasks.length);
-        console.log('[TaskBoard] Users:', users.length);
-        console.log('[TaskBoard] User Counts:', result);
-        return result;
     }, [tasks, users]);
 
 
@@ -178,7 +177,7 @@ export const TaskBoard = () => {
                                             }`}>
                                             {task.priority}
                                         </span>
-                                        <div className="text-xs text-gray-500 font-medium">{task.user_name || 'Unassigned'}</div>
+                                        <div className="text-xs text-gray-500 font-medium">{users.find(u => u.id === task.user_id)?.full_name || 'Unassigned'}</div>
                                     </div>
                                 </div>
                             ))}
