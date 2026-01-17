@@ -1,29 +1,20 @@
-"use client"; // MUST be first line to indicate this is a client component
+"use client";
+import { useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
 
-import { useAuth } from "@/context/AuthContext"; // import custom AuthContext hook
-import { useRouter } from "next/navigation"; // import Next.js router for client-side navigation
-import {useState, useEffect } from "react"; // import React hook to run side effects
-import { TaskList } from "@/components/dashboard/TaskList"; // import TaskBoard component
+export default function ProjectRedirect() {
+  const router = useRouter();
+  const params = useParams();
 
-export default function ProjectPage() { // Dashboard page component
-  const { user, loading } = useAuth(); // get current user and loading state from context
-  const router = useRouter(); // initialize Next.js router
-  const [searchQuery, setSearchQuery] = useState("");
-  useEffect(() => { // runs after component mounts or when dependencies change
-    if (!loading && !user) { // check if not loading and user is not logged in
-      router.replace("/login"); // redirect to login page safely inside effect
+  useEffect(() => {
+    if (params.ProjectId) {
+      router.replace(`/projects/${params.ProjectId}/list`);
     }
-  }, [loading, user, router]); // dependencies: run effect when these values change
-
-  if (loading) return <div>Loading...</div>; // show loading UI while checking auth state
-  if (!user) return null; // prevent rendering dashboard if user is not logged in (redirect pending)
+  }, [params.ProjectId, router]);
 
   return (
-    <div className="relative min-h-screen p-4">
-      {/* Page content */}
-      <div className="mt-10">
-        <TaskList />
-      </div>
+    <div className="p-8 flex items-center justify-center">
+      <p className="text-gray-500 font-medium animate-pulse">Redirecting to task list...</p>
     </div>
   );
 }
