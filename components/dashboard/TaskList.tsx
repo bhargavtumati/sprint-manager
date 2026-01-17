@@ -11,20 +11,29 @@ const WorkType = {
   Task: "Task",
   Story: "Story",
   Bug: "Bug",
+  "Review": "Review",
+  "Closed": "Closed - Won't Do",
+
 } as const;
 
 const Workflow = {
+  Backlog: "Backlog",
   "To Do": "To Do",
   "In Progress": "In Progress",
-  "In Review": "In Review",
+  "On Hold": "On Hold",
+  "QA": "QA",
   Done: "Done",
+  "Review": "Review",
+  "Closed": "Closed - Won't Do",
 } as const;
 
 const Priority = {
-  Low: "Low",
-  Medium: "Medium",
-  High: "High",
+  Blocker: "Blocker",
   Critical: "Critical",
+  Major: "Major",
+  Medium: "Medium",
+  Minor: "Minor",
+  Trivial: "Trivial",
 } as const;
 
 type WorkType = typeof WorkType[keyof typeof WorkType];
@@ -96,7 +105,7 @@ const enumValues = (enumObj: object) => Object.values(enumObj);
 
 export const TaskList = () => {
   const params = useParams();
-  const { searchQuery } = useSearch();
+  const { searchQuery, filters, setFilters } = useSearch();
   const projectId =
     typeof params.ProjectId === "string"
       ? params.ProjectId
@@ -112,6 +121,19 @@ export const TaskList = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const buildQuery = useCallback((baseUrl: string) => {
+    try {
+      const url = new URL(baseUrl, window.location.origin);
+      if (filters.work_type) url.searchParams.append("work_type", filters.work_type);
+      if (filters.work_flow) url.searchParams.append("work_flow", filters.work_flow);
+      if (filters.priority) url.searchParams.append("priority", filters.priority);
+      return url.toString();
+    } catch (e) {
+      console.error("Error building query URL:", e, baseUrl);
+      return baseUrl;
+    }
+  }, [filters]);
+
   // Create task
   const [title, setTitle] = useState("");
   const [assigneeUser, setAssigneeUser] = useState<User | null>(null);
@@ -125,6 +147,11 @@ export const TaskList = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isSidebarFull, setIsSidebarFull] = useState(false);
   const [sprintFilters, setSprintFilters] = useState<Record<number, number | null>>({});
+  const sprintFiltersRef = useRef(sprintFilters);
+
+  useEffect(() => {
+    sprintFiltersRef.current = sprintFilters;
+  }, [sprintFilters]);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize description textarea
@@ -196,73 +223,91 @@ export const TaskList = () => {
   const fetchBoardData = useCallback(async () => {
     if (!API_URL || !projectId) return;
 
+    console.log('[FETCH] fetchBoardData called with filters:', JSON.stringify(filters));
+    console.log('[FETCH] Current state:', {
+      hasFilters: Object.keys(filters).length > 0,
+      work_type: filters.work_type,
+      work_flow: filters.work_flow,
+      priority: filters.priority
+    });
+
     setLoading(true);
     setError("");
+
     // 🔍 SEARCH MODE — STOP NORMAL BOARD FLOW
     if (searchQuery && searchQuery.trim()) {
       const searchUrl = `${API_URL}/tasks/search/ByTitle?project_id=${projectId}&q=${encodeURIComponent(
         searchQuery.trim()
       )}`;
-
-      console.log("SEARCH MODE URL:", searchUrl);
-
       const searchData = await apiFetch(searchUrl);
-
       setTasks(Array.isArray(searchData) ? searchData : []);
-
       setLoading(false);
-      return; // ⛔ THIS IS CRITICAL
+      return;
     }
-
 
     try {
       console.log("Fetching board data for project:", projectId);
       // 1. Fetch Sprints
       const sprintsData = await apiFetch(`${API_URL}/sprints/${projectId}`);
       const loadedSprints = Array.isArray(sprintsData) ? sprintsData : [];
-      let uniqueSprints: Sprint[] = [];
-      if (Array.isArray(loadedSprints)) {
-        uniqueSprints = Array.from(
-          new Map(loadedSprints.map((s: Sprint) => [String(s.id), s])).values()
-        );
-      }
+      const uniqueSprints = Array.from(
+        new Map(loadedSprints.map((s: Sprint) => [String(s.id), s])).values()
+      );
+
       // 2. Fetch Unassigned Tasks (Backlog)
+      const backlogBaseUrl = `${API_URL}/tasks/unassigned?project_ids=${projectId}`;
       let backlogUrl: string;
-
-      // if (searchQuery && searchQuery.trim().length > 0) {
-      //   backlogUrl = `${API_URL}/tasks/search/ByTitle?q=${encodeURIComponent(
-      //     searchQuery.trim()
-      //   )}`;
-      // } 
       if (backlogFilterUserId === -1) {
-        // Logic for "Unassigned" - typically implies user_id is null/absent on the backend
-        // but explicitly requested for the backlog
-        backlogUrl = `${API_URL}/tasks/unassigned/${projectId}?backlog=true`;
+        backlogUrl = `${backlogBaseUrl}&backlog=true`;
       } else if (backlogFilterUserId) {
-        // Logic for a specific user
-        backlogUrl = `${API_URL}/tasks/unassigned/${projectId}?user_id=${backlogFilterUserId}`;
+        backlogUrl = `${backlogBaseUrl}&user_ids=${backlogFilterUserId}`;
       } else {
-        // Logic for "All Items"
-        backlogUrl = `${API_URL}/tasks/unassigned/${projectId}`;
+        // Default to pure backlog (no user, no sprint)
+        backlogUrl = `${backlogBaseUrl}&backlog=true`;
       }
 
+      // Apply global filters to backlog as well
+      console.log('[BACKLOG] URL before buildQuery:', backlogUrl);
+      backlogUrl = buildQuery(backlogUrl);
+      console.log('[BACKLOG] URL after buildQuery:', backlogUrl);
 
-      console.log("SEARCH API URL:", backlogUrl);
       const backlogData = await apiFetch(backlogUrl);
-      const backlogTasks = Array.isArray(backlogData)
+      let backlogTasks = Array.isArray(backlogData)
         ? backlogData.map((t: any) => ({ ...t, sprint_id: t.sprint_id || null }))
         : [];
 
+
+
+      console.log('[BACKLOG] Returned:', {
+        count: backlogTasks.length,
+        tasks: backlogTasks.map(t => ({
+          id: t.id,
+          title: t.title,
+          work_type: t.work_type,
+          work_flow: t.work_flow
+        }))
+      });
+
       // 3. Fetch Tasks for each Sprint
       const sprintTasksPromises = uniqueSprints.map(async (sprint) => {
-        const url = `${API_URL}/tasks/all/${projectId}?sprint_id=${sprint.id}`;
+        const uId = sprintFiltersRef.current[sprint.id];
+
+
+        let url = uId === -1
+          ? `${API_URL}/tasks/unassigned?project_ids=${projectId}&sprint_ids=${sprint.id}`
+          : uId
+            ? `${API_URL}/tasks/all?project_ids=${projectId}&sprint_ids=${sprint.id}&user_ids=${uId}`
+            : `${API_URL}/tasks/all?project_ids=${projectId}&sprint_ids=${sprint.id}`;
+
+        if (sprint.status) {
+          url = buildQuery(url);
+        }
+
         try {
-          console.log(`[DEBUG] Fetching tasks for sprint ${sprint.id} from: ${url}`);
           const tData = await apiFetch(url);
-          console.log(`[DEBUG] Received ${Array.isArray(tData) ? tData.length : "NOT AN ARRAY"} tasks for sprint ${sprint.id}`);
           return Array.isArray(tData) ? tData.map((t: any) => ({ ...t, sprint_id: sprint.id })) : [];
         } catch (e) {
-          console.error(`[DEBUG] Failed to load tasks for sprint ${sprint.id} at ${url}`, e);
+          console.error(`Failed to load tasks for sprint ${sprint.id}`, e);
           return [];
         }
       });
@@ -270,23 +315,19 @@ export const TaskList = () => {
       const sprintTasksResults = await Promise.all(sprintTasksPromises);
       const allSprintTasks = sprintTasksResults.flat();
 
-      // 4. Update State
       setSprints(uniqueSprints);
-
-      // Combine all tasks
       const allTasks = [...backlogTasks, ...allSprintTasks];
       const uniqueAllTasks = Array.from(
         new Map(allTasks.map((task) => [String(task.id), task])).values()
       );
 
       setTasks(uniqueAllTasks);
-
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load board data");
     } finally {
       setLoading(false);
     }
-  }, [API_URL, projectId, backlogFilterUserId, searchQuery]);
+  }, [API_URL, projectId, backlogFilterUserId, searchQuery, filters, buildQuery]);
 
   const fetchProjectUsers = useCallback(async () => {
     if (!API_URL || !projectId) return;
@@ -302,11 +343,14 @@ export const TaskList = () => {
   const fetchSprintTasks = async (sprintId: number, uId: number | null) => {
     if (!API_URL || !projectId) return;
     try {
-      const url = uId === -1
-        ? `${API_URL}/tasks/unassigned/${projectId}?sprint_id=${sprintId}`
+      let url = uId === -1
+        ? `${API_URL}/tasks/unassigned?project_ids=${projectId}&sprint_ids=${sprintId}`
         : uId
-          ? `${API_URL}/tasks/all/${projectId}?sprint_id=${sprintId}&user_id=${uId}`
-          : `${API_URL}/tasks/all/${projectId}?sprint_id=${sprintId}`;
+          ? `${API_URL}/tasks/all?project_ids=${projectId}&sprint_ids=${sprintId}&user_ids=${uId}`
+          : `${API_URL}/tasks/all?project_ids=${projectId}&sprint_ids=${sprintId}`;
+
+      // Since fetchSprintTasks is used when global filters or assignee change for a sprint
+      url = buildQuery(url);
       const data: Task[] = await apiFetch(url);
       setTasks(prev => {
         const otherTasks = prev.filter(t => t.sprint_id !== sprintId);
@@ -738,21 +782,78 @@ export const TaskList = () => {
                     </h2>
 
                     <div className="flex items-center gap-2 ml-4 border-l pl-4">
-                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Filter:</label>
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wider text-nowrap">Filters:</label>
                       <select
                         value={sprintFilters[sprint.id] || ""}
                         onChange={(e) => {
                           const val = e.target.value === "" ? null : Number(e.target.value);
+                          console.log(`[FILTER] Changing assignee for sprint ${sprint.id} to:`, val);
                           setSprintFilters(prev => ({ ...prev, [sprint.id]: val }));
+                          // fetchSprintTasks(sprint.id, val); // Let's rely on the effect first, or debug why manual call fails?
+                          // The user earlier said UI didn't update on empty array. Explicit call *should* fix that.
+                          // But user says "filter not working". Maybe race condition?
+                          // Let's keep explicit call but log it.
                           fetchSprintTasks(sprint.id, val);
                         }}
-                        className="border rounded px-2 py-1 text-xs bg-white focus:ring-1 focus:ring-blue-400"
+                        className="border rounded px-2 py-1 text-xs bg-white focus:ring-1 focus:ring-blue-400 min-w-[120px]"
                       >
-                        <option value="">All Items</option>
+                        <option value="">All Assignees</option>
                         {projectUsers.map(u => (
                           <option key={`filter-user-${sprint.id}-${u.id}`} value={u.id}>{u.full_name}</option>
                         ))}
                         <option value="-1">Unassigned</option>
+                      </select>
+
+                      <select
+                        value={filters.work_type || ""}
+                        onChange={(e) => {
+                          console.log('[FILTER] work_type changed to:', e.target.value);
+                          setFilters(prev => ({ ...prev, work_type: e.target.value || undefined }));
+                        }}
+                        className="px-2 py-1 border rounded text-xs bg-white text-gray-600 focus:ring-1 focus:ring-blue-400 cursor-pointer"
+                      >
+                        <option value="">All Types</option>
+                        <option value="Task">Task</option>
+                        <option value="Story">Story</option>
+                        <option value="Bug">Bug</option>
+                        <option value="Review">Review</option>
+                        <option value="Closed - Won't Do">Closed - Won't Do</option>
+                      </select>
+
+                      <select
+                        value={filters.work_flow || ""}
+                        onChange={(e) => {
+                          console.log('[FILTER] work_flow changed to:', e.target.value);
+                          setFilters(prev => ({ ...prev, work_flow: e.target.value || undefined }));
+                        }}
+                        className="px-2 py-1 border rounded text-xs bg-white text-gray-600 focus:ring-1 focus:ring-blue-400 cursor-pointer"
+                      >
+                        <option value="">All Status</option>
+                        <option value="Backlog">Backlog</option>
+                        <option value="To Do">To Do</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="On Hold">On Hold</option>
+                        <option value="QA">QA</option>
+                        <option value="Done">Done</option>
+                        <option value="Review">Review</option>
+                        <option value="Closed - Won't Do">Closed - Won't Do</option>
+                      </select>
+
+                      <select
+                        value={filters.priority || ""}
+                        onChange={(e) => {
+                          console.log('[FILTER] priority changed to:', e.target.value);
+                          setFilters(prev => ({ ...prev, priority: e.target.value || undefined }));
+                        }}
+                        className="px-2 py-1 border rounded text-xs bg-white text-gray-600 focus:ring-1 focus:ring-blue-400 cursor-pointer"
+                      >
+                        <option value="">All Priority</option>
+                        <option value="Blocker">Blocker</option>
+                        <option value="Critical">Critical</option>
+                        <option value="Major">Major</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Minor">Minor</option>
+                        <option value="Trivial">Trivial</option>
                       </select>
                     </div>
                   </div>
@@ -850,7 +951,6 @@ export const TaskList = () => {
                         onChange={(e) => {
                           const val = e.target.value === "" ? null : Number(e.target.value);
                           setSprintFilters(prev => ({ ...prev, [sprint.id]: val }));
-                          fetchSprintTasks(sprint.id, val);
                         }}
                         className="border rounded px-2 py-1 text-xs bg-white focus:ring-1 focus:ring-blue-400"
                       >

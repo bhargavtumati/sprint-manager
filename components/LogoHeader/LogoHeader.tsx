@@ -13,18 +13,18 @@ export default function LogoHeader() {
 
     return (
         <header className={styles.header}>
-            <Link href="/dashboard" className="no-underline">
-                <h1 className={styles.title}>Sprint Manager</h1>
-            </Link>
+
+            <h1 className={styles.title}>Sprint Manager</h1>
+
             {!isAuthPage && pathname.startsWith("/projects") && (
-  <input
-    type="text"
-    placeholder="🔍 Search tasks..."
-    value={searchQuery}
-    onChange={(e) => setSearchQuery(e.target.value)}
-    className="px-3 py-1 border rounded w-309"
-  />
-)}
+                <input
+                    type="text"
+                    placeholder="🔍 Search tasks..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="px-3 py-1 border rounded w-350 focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                />
+            )}
 
 
             {!isAuthPage && (

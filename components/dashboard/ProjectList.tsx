@@ -45,8 +45,9 @@ export const ProjectList = () => {
 
   /* ===================== ASSIGN PROJECT STATE ===================== */
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [modalMode, setModalMode] = useState<'assign' | 'unassign'>('assign');
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
-  const [orgUsers, setOrgUsers] = useState<User[]>([]);
+  const [modalUsers, setModalUsers] = useState<User[]>([]);
   const [assigningLoading, setAssigningLoading] = useState(false);
   const [usersLoading, setUsersLoading] = useState(false);
 
@@ -144,45 +145,55 @@ export const ProjectList = () => {
   if (loading) return <p>Loading projects...</p>;
   if (error) return <p className="text-red-500">{error}</p>;
 
-  const fetchOrgUsers = async () => {
+  const fetchModalUsers = async (projId: number, mode: 'assign' | 'unassign') => {
     if (!API_URL || !userId) return;
     setUsersLoading(true);
     try {
       // 1. Get current user's organization
       const profile = await apiFetch(`${API_URL}/users/${userId}`);
       const userOrg = profile.organisation || "Symphonize"; // fallback
-      console.log(`[DEBUG] Fetching users for organization: ${userOrg}`);
 
-      // 2. Get users in that organization
-      const data = await apiFetch(`${API_URL}/users/organisation/${userOrg}`);
-      setOrgUsers(Array.isArray(data) ? data : []);
+      // 2. Fetch users based on mode
+      // URL format: /users/{action}/{organisation}?project_id={id}
+      const action = mode === 'assign' ? 'assignproject' : 'unassignproject';
+      const url = `${API_URL}/users/${action}/${encodeURIComponent(userOrg)}?project_id=${projId}`;
+
+      console.log(`[DEBUG] Fetching users for ${mode}: ${url}`);
+      const data = await apiFetch(url);
+      setModalUsers(Array.isArray(data) ? data : []);
     } catch (e) {
-      console.error("Failed to fetch org users", e);
-      setOrgUsers([]);
+      console.error(`Failed to fetch users for ${mode}`, e);
+      setModalUsers([]);
     } finally {
       setUsersLoading(false);
     }
   };
 
-  const openAssignModal = (projectId: number) => {
+  const openModal = (projectId: number, mode: 'assign' | 'unassign') => {
     setSelectedProjectId(projectId);
+    setModalMode(mode);
     setShowAssignModal(true);
-    fetchOrgUsers();
+    fetchModalUsers(projectId, mode);
   };
 
-  const handleAssignUser = async (userToAssign: User) => {
+  const handleUserAction = async (targetUser: User) => {
     if (!selectedProjectId) return;
     setAssigningLoading(true);
     try {
-      // Assuming /projects/assign endpoint based on plan
-      await apiFetch(`${API_URL}/projects/add-users/${selectedProjectId}`, {
+      const endpoint = modalMode === 'assign'
+        ? `${API_URL}/projects/add-users/${selectedProjectId}`
+        : `${API_URL}/projects/remove-users/${selectedProjectId}`;
+
+      await apiFetch(endpoint, {
         method: "POST",
         body: JSON.stringify({
-          user_ids: [userToAssign.id]
+          user_ids: [targetUser.id]
         })
       });
 
-      alert(`Assigned to ${userToAssign.full_name}`);
+      const actionText = modalMode === 'assign' ? 'Assigned' : 'Unassigned';
+      alert(`${actionText} ${targetUser.full_name}`);
+
       setShowAssignModal(false);
       // Refresh user count for this project
       try {
@@ -192,7 +203,7 @@ export const ProjectList = () => {
         console.error(`Failed to refresh user count for project ${selectedProjectId}`, err);
       }
     } catch (err) {
-      alert("Failed to assign user");
+      alert(`Failed to ${modalMode} user`);
     } finally {
       setAssigningLoading(false);
     }
@@ -200,30 +211,45 @@ export const ProjectList = () => {
 
   return (
     <div className="mb-6 bg-slate-50 p-6 rounded-xl shadow-sm relative">
-      {/* ASSIGN MODAL */}
+      {/* ASSIGN/UNASSIGN MODAL */}
       {showAssignModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded shadow-lg max-w-md w-full">
-            <h3 className="text-lg font-bold mb-4">Assign Project</h3>
+            <h3 className="text-lg font-bold mb-4">
+              {modalMode === 'assign' ? 'Assign User to Project' : 'Unassign User from Project'}
+            </h3>
             <div className="max-h-60 overflow-y-auto space-y-2">
               {usersLoading && <p>Loading users...</p>}
-              {!usersLoading && orgUsers
+              {!usersLoading && modalUsers
                 .filter(u => u.full_name)
                 .map(u => (
                   <button
                     key={u.id}
-                    onClick={() => handleAssignUser(u)}
-                    className="w-full text-left p-2 hover:bg-gray-100 rounded border"
+                    onClick={() => handleUserAction(u)}
+                    className={`w-full text-left p-2 rounded border transition-colors ${modalMode === 'assign'
+                      ? 'hover:bg-blue-50 border-blue-100'
+                      : 'hover:bg-red-50 border-red-100'
+                      }`}
                     disabled={assigningLoading}
                   >
-                    {u.full_name}
+                    <div className="flex justify-between items-center">
+                      <span>{u.full_name}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded ${modalMode === 'assign' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                        {modalMode === 'assign' ? 'Add' : 'Remove'}
+                      </span>
+                    </div>
                   </button>
                 ))}
-              {!usersLoading && orgUsers.length === 0 && <p>No users found</p>}
+              {!usersLoading && modalUsers.length === 0 && (
+                <p className="text-gray-500 italic text-center py-4">
+                  {modalMode === 'assign' ? 'No users available to assign' : 'No users to unassign'}
+                </p>
+              )}
             </div>
             <button
               onClick={() => setShowAssignModal(false)}
-              className="mt-4 text-red-500 w-full text-center"
+              className="mt-4 text-gray-500 w-full text-center hover:text-gray-700 underline text-sm"
             >
               Cancel
             </button>
@@ -235,7 +261,7 @@ export const ProjectList = () => {
 
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-6">
         {/* Table Header */}
-        <div className="grid grid-cols-[1fr_1fr_120px_100px] gap-4 p-4 bg-gray-50 border-b border-gray-200 text-xs font-black uppercase tracking-wider text-gray-500">
+        <div className="grid grid-cols-[2fr_1.5fr_140px_110px] gap-4 p-4 bg-gray-50 border-b border-gray-200 text-xs font-black uppercase tracking-wider text-gray-500">
           <div>Project Name</div>
           <div>Project Manager</div>
           <div className="text-center">Team size</div>
@@ -247,7 +273,7 @@ export const ProjectList = () => {
           {projects.map((project) => (
             <li
               key={project.id}
-              className="grid grid-cols-[1fr_1fr_120px_100px] gap-4 p-4 items-center hover:bg-blue-50/50 transition-colors group cursor-pointer"
+              className="grid grid-cols-[2fr_1.5fr_140px_110px] gap-4 p-4 items-center hover:bg-blue-50/50 transition-colors group cursor-pointer"
               onClick={() => router.push(`/projects/${project.id}`)}
             >
               <div className="font-bold text-gray-900 truncate">
@@ -267,15 +293,24 @@ export const ProjectList = () => {
                 </span>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex flex-col justify-end gap-2">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    openAssignModal(project.id);
+                    openModal(project.id, 'assign');
                   }}
                   className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 shrink-0"
                 >
                   Assign
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openModal(project.id, 'unassign');
+                  }}
+                  className="bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm active:scale-95 shrink-0"
+                >
+                  Unassign
                 </button>
               </div>
             </li>
