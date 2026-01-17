@@ -5,14 +5,15 @@ import { createContext, useContext, ReactNode, useState, useEffect, useCallback,
 interface User {
   id: number;
   email: string;
-  name?: string;
+  full_name?: string;
+  organisation?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<User>;
-  signup: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string) => Promise<User>;
   logout: () => void;
 }
 
@@ -65,21 +66,35 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   );
 
   const signup = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string): Promise<User> => {
       const res = await fetch(`${API_URL}/users/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || "Signup failed");
+        throw new Error(data.detail || "Signup failed");
       }
 
-      const data = await res.json();
-      setUser(data); // data should be the user object from FastAPI
-      localStorage.setItem("user", JSON.stringify(data));
+      // Handle backend-specific error responses that might have status 200
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Handle the case where the response is a single-element set/list with an error string
+      if (Array.isArray(data) && typeof data[0] === "string" && data[0].includes("already registered")) {
+        throw new Error(data[0]);
+      }
+
+      // Extract user object from successful response: {"User created successfully": new_user}
+      const userData = data["User created successfully"] || data;
+
+      setUser(userData);
+      localStorage.setItem("user", JSON.stringify(userData));
+      return userData;
     },
     [API_URL]
   );

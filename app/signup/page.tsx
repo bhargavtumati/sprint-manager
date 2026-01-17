@@ -18,8 +18,8 @@ export default function SignUpPage() {
     setError("");
 
     try {
-      await signup(email, password);
-      setSuccess("User created successfully!");
+      const result = await signup(email, password);
+      setSuccess("Signup successful!");
       setTimeout(() => {
         router.push("/login");
       }, 1500);

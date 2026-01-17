@@ -82,7 +82,13 @@ export default function EditProfilePage() {
       localStorage.setItem("user", JSON.stringify(updated));
 
       // Navigate back to dashboard (or wherever appropriate)
-      router.back();
+      const previousPage = document.referrer;
+
+      if (previousPage && !previousPage.includes("/login")) {
+        router.back();
+      } else {
+        router.replace("/dashboard");
+      }
     } catch (err: any) {
       setError(err?.message || String(err));
     } finally {
