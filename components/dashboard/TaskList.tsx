@@ -155,26 +155,7 @@ export const TaskList = () => {
   }, [sprintFilters]);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-resize description textarea
-  useEffect(() => {
-    const textarea = descriptionRef.current;
-    if (!textarea) return;
 
-    const resizeTextArea = () => {
-      textarea.style.height = "auto";
-      textarea.style.height = `${Math.max(100, textarea.scrollHeight + 20)}px`;
-    };
-
-    // Initial call
-    resizeTextArea();
-
-    const observer = new ResizeObserver(resizeTextArea);
-    observer.observe(textarea);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [selectedTask?.id, selectedTask?.description]);
   useEffect(() => {
     if (selectedTask) {
       const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
@@ -192,6 +173,11 @@ export const TaskList = () => {
 
   const [backlogFilterUserId, setBacklogFilterUserId] = useState<number | null>(null);
   const [showInactiveSprints, setShowInactiveSprints] = useState(false);
+
+  // AI Generation State
+  const [showAiPrompt, setShowAiPrompt] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
 
   /* ===================== MEMOIZED UNIQUE DATA ===================== */
 
@@ -443,6 +429,49 @@ export const TaskList = () => {
       alert("Failed to update task");
     }
   };
+
+  /* ===================== GENERATE DESCRIPTION AI ===================== */
+
+  const handleGenerateDescription = async (taskId: number) => {
+    if (!taskId || !aiPrompt.trim() || !API_URL) return;
+
+    setIsGenerating(true);
+    try {
+      console.log(`[DEBUG] Generating description for Task ${taskId} with prompt:`, aiPrompt);
+
+      const updatedTask: Task = await apiFetch(
+        `${API_URL}/tasks/${taskId}/description`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            prompt: aiPrompt,
+          }),
+        }
+      );
+
+      console.log(`[DEBUG] AI Generation Success:`, updatedTask);
+
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? updatedTask : t))
+      );
+
+      // Update selected task immediately so UI reflects change
+      setSelectedTask((prev) => prev ? { ...prev, description: updatedTask.description } : null);
+
+      // Reset state
+      setIsGenerating(false);
+      setShowAiPrompt(false);
+      setAiPrompt("");
+
+      // Refresh board data
+      fetchBoardData();
+    } catch (err) {
+      console.error(`[DEBUG] AI Generation Failed:`, err);
+      alert("Failed to generate description");
+      setIsGenerating(false);
+    }
+  };
+
 
   /* ===================== CREATE TASK ===================== */
 
@@ -1060,7 +1089,8 @@ export const TaskList = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1">Description</label>
                   <textarea
-                    ref={descriptionRef}
+                    // ref={descriptionRef}
+                    rows={12}
                     value={selectedTask.description || ""}
                     onChange={(e) => {
                       const val = e.target.value;
@@ -1069,9 +1099,45 @@ export const TaskList = () => {
                     onBlur={(e) => {
                       handleTaskUpdate(selectedTask.id, "description", e.target.value);
                     }}
-                    className="w-full border border-gray-200 p-3 rounded-lg font-sans text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:outline-none overflow-hidden"
+                    className="w-full border border-gray-200 p-3 rounded-lg font-sans text-sm resize-y focus:ring-2 focus:ring-blue-500 focus:outline-none min-h-[300px]"
                     placeholder="Add a detailed description..."
                   />
+
+                  <div className="mt-2 flex flex-col items-end">
+                    <button
+                      onClick={() => setShowAiPrompt(!showAiPrompt)}
+                      className="text-xs bg-purple-100 text-purple-600 px-3 py-1.5 rounded-md hover:bg-purple-200 transition-colors flex items-center gap-1 font-medium"
+                    >
+                      ✨ Generate with AI
+                    </button>
+
+                    {showAiPrompt && (
+                      <div className="mt-2 p-3 bg-purple-50 rounded-lg border border-purple-100 animate-slide-in">
+                        <label className="block text-xs font-bold text-purple-700 mb-1">
+                          Tell us more about this task?
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={aiPrompt}
+                            onChange={(e) => setAiPrompt(e.target.value)}
+                            placeholder="e.g. 'A user story for login functionality with validation'"
+                            className="flex-1 text-sm border border-purple-200 rounded px-2 py-1 focus:ring-2 focus:ring-purple-400 focus:outline-none"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleGenerateDescription(selectedTask.id);
+                            }}
+                          />
+                          <button
+                            onClick={() => handleGenerateDescription(selectedTask.id)}
+                            disabled={isGenerating || !aiPrompt.trim()}
+                            className="bg-purple-600 text-white text-xs px-3 py-1 rounded hover:bg-purple-700 disabled:opacity-50"
+                          >
+                            {isGenerating ? "Generating..." : "Generate"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -1186,7 +1252,8 @@ export const TaskList = () => {
             </div>
           </div>
         </div>
-      )}
+      )
+      }
 
       <style jsx global>{`
         @keyframes slide-in {
@@ -1197,6 +1264,6 @@ export const TaskList = () => {
           animation: slide-in 0.3s ease-out forwards;
         }
       `}</style>
-    </div>
+    </div >
   );
 };
