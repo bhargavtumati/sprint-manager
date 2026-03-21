@@ -68,6 +68,7 @@ type User = {
 
 type Sprint = {
   id: number;
+  sprint_number: number;
   start_date: string;
   end_date: string;
   status: boolean;
@@ -514,16 +515,16 @@ export const TaskList = () => {
     }
   };
 
-  const renderCreateTaskForm = (sprintId: number | null) => {
-    const isBacklog = sprintId === null;
-    const isActive = activeCreateSprintId === (isBacklog ? "backlog" : sprintId);
+  const renderCreateTaskForm = (sprint: Sprint | null) => {
+    const isBacklog = sprint?.id === null;
+    const isActive = activeCreateSprintId === (isBacklog ? "backlog" : sprint?.id);
 
     if (!isActive) {
       return (
         <button
           onClick={() => {
-            setActiveCreateSprintId(isBacklog ? "backlog" : sprintId);
-            setCreateSprintId(sprintId);
+            setActiveCreateSprintId(isBacklog ? "backlog" : sprint?.id || null);
+            setCreateSprintId(sprint?.id || null);
           }}
           className="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-all flex items-center justify-center gap-2 mt-2"
         >
@@ -535,7 +536,7 @@ export const TaskList = () => {
     return (
       <div className="border-2 border-blue-400 p-4 rounded-xl bg-white shadow-md mt-2 space-y-4">
         <div className="flex justify-between items-center">
-          <h4 className="font-bold text-gray-800">New Task in {isBacklog ? "Backlog" : `Sprint ${sprintId}`}</h4>
+          <h4 className="font-bold text-gray-800">New Task in {isBacklog ? "Backlog" : `Sprint ${sprint?.sprint_number }`}</h4>
           <button
             onClick={() => setActiveCreateSprintId(null)}
             className="text-gray-400 hover:text-gray-600"
@@ -552,7 +553,7 @@ export const TaskList = () => {
             placeholder="Task title"
             className="border border-gray-300 px-4 py-2 rounded-lg flex-1 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             onKeyDown={(e) => {
-              if (e.key === "Enter") handleCreateTask(sprintId);
+              if (e.key === "Enter") handleCreateTask(sprint?.id || null);
               if (e.key === "Escape") setActiveCreateSprintId(null);
             }}
           />
@@ -595,7 +596,7 @@ export const TaskList = () => {
           </select>
 
           <button
-            onClick={() => handleCreateTask(sprintId)}
+            onClick={() => handleCreateTask(sprint?.id || null)}
             disabled={creating || !title.trim()}
             className="bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold disabled:opacity-50 hover:bg-blue-600 transition-colors"
           >
@@ -693,7 +694,7 @@ export const TaskList = () => {
         >
           <option value="">Backlog</option>
           {uniqueSprints.map(s => (
-            <option key={s.id} value={s.id}>{`Sprint ${s.id}`}</option>
+            <option key={s.id} value={s.id}>{`Sprint ${s.sprint_number}`}</option>
           ))}
         </select>
 
@@ -830,7 +831,7 @@ export const TaskList = () => {
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center gap-4">
                     <h2 className="text-xl font-bold">
-                      {`Sprint ${sprint.id}`}
+                      {`Sprint ${sprint.sprint_number}`}
                       <span className="text-sm font-medium text-gray-700 ml-3">
                         {sprint.start_date && sprint.end_date ? (
                           `(${new Date(sprint.start_date).toLocaleDateString()} - ${new Date(sprint.end_date).toLocaleDateString()})`
@@ -917,7 +918,7 @@ export const TaskList = () => {
                 ) : (
                   sprintTasks.map(renderTaskItem)
                 )}
-                {renderCreateTaskForm(sprint.id)}
+                {renderCreateTaskForm(sprint)}
               </div>
             );
           })}
@@ -977,13 +978,13 @@ export const TaskList = () => {
               const sprintTasks = uniqueTasks.filter((t: Task) => t.sprint_id === sprint.id);
 
               return (
-                <div key={`sprint-cont-${sprint.id}`} className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 grayscale-[0.5] opacity-80">
+                <div key={`sprint-cont-${sprint.sprint_number}`} className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 grayscale-[0.5] opacity-80">
                   <div className="flex justify-between items-center mb-4">
 
 
                     <div className="flex items-center gap-4">
                       <h2 className="text-xl font-bold text-gray-500">
-                        {`Sprint ${sprint.id}`}
+                        {`Sprint ${sprint.sprint_number}`}
                         <span className="text-sm font-medium text-gray-400 ml-3">
                           {sprint.start_date && sprint.end_date ? (
                             `(${new Date(sprint.start_date).toLocaleDateString()} - ${new Date(sprint.end_date).toLocaleDateString()})`
@@ -1018,7 +1019,7 @@ export const TaskList = () => {
                   ) : (
                     sprintTasks.map(renderTaskItem)
                   )}
-                  {renderCreateTaskForm(sprint.id)}
+                  {renderCreateTaskForm(sprint)}
                 </div>
               );
             })}
@@ -1174,7 +1175,7 @@ export const TaskList = () => {
                     >
                       <option value="">Backlog</option>
                       {uniqueSprints.map((s: Sprint) => (
-                        <option key={`side-sprint-${s.id}`} value={s.id}>{`Sprint ${s.id}`}</option>
+                        <option key={`side-sprint-${s.id}`} value={s.id}>{`Sprint ${s.sprint_number}`}</option>
                       ))}
                     </select>
                   </div>

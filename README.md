@@ -4,6 +4,10 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 First, run the development server:
 
+# install node js 
+# set (Set-ExecutionPolicy RemoteSigned -Scope CurrentUser) in powershell
+# npm install
+
 ```bash
 npm run dev
 # or
