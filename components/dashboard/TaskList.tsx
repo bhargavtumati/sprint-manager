@@ -516,7 +516,7 @@ export const TaskList = () => {
   };
 
   const renderCreateTaskForm = (sprint: Sprint | null) => {
-    const isBacklog = sprint?.id === null;
+    const isBacklog = sprint === null;
     const isActive = activeCreateSprintId === (isBacklog ? "backlog" : sprint?.id);
 
     if (!isActive) {
